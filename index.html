@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vecino — Plazas y Áreas Verdes de Santiago</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #009B77;
+      --green-dark: #007d60;
+      --text: #1a2e44;
+      --muted: #717171;
+      --border: #e0e0e0;
+      --star: #FF9500;
+      --heart: #FF385C;
+      --bg: #f0f2f5;
+      --white: #ffffff;
+      --radius: 14px;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text); background: var(--white); -webkit-font-smoothing: antialiased; }
+
+    /* ─── SHARED NAVBAR ─────────────────────────── */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 64px;
+      background: var(--white); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; z-index: 300;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer; }
+    .logo-badge {
+      width: 40px; height: 40px; background: var(--text); border-radius: 8px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    }
+    .logo-lbl { color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+    .hamburger {
+      background: var(--white); border: 1px solid var(--border); border-radius: 22px;
+      padding: 9px 14px; cursor: pointer; display: flex; align-items: center; gap: 9px;
+    }
+    .ham-lines { display: flex; flex-direction: column; gap: 3.5px; }
+    .ham-line { width: 16px; height: 1.5px; background: var(--text); border-radius: 2px; }
+    .avatar { width: 28px; height: 28px; background: #aaa; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    /* ─── HOME VIEW ──────────────────────────────── */
+    #home-view { display: block; }
+
+    /* Hero */
+    .hero { margin-top: 64px; position: relative; height: 480px; overflow: hidden; }
+    .hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; filter: brightness(.62); }
+    .hero-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px; padding: 0 24px;
+    }
+    .hero-title { font-size: clamp(1.5rem,3vw,2.4rem); font-weight: 700; color: #fff; text-align: center; max-width: 640px; line-height: 1.25; }
+
+    /* Search bar */
+    .search-bar {
+      display: flex; align-items: center; background: var(--white);
+      border-radius: 12px; width: 100%; max-width: 780px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.22); overflow: hidden;
+    }
+    .search-input { flex: 1; border: none; outline: none; padding: 16px 20px; font-size: 14.5px; font-family: inherit; color: var(--text); }
+    .search-input::placeholder { color: #aaa; }
+    .sdiv { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+    .filter-btn { display: flex; align-items: center; gap: 7px; padding: 16px 16px; background: transparent; border: none; font-size: 14px; color: var(--text); cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap; }
+    .search-submit { background: var(--green); border: none; margin: 6px 6px 6px 0; border-radius: 9px; width: 44px; height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+    .search-submit:hover { background: var(--green-dark); }
+
+    /* Pills */
+    .pills-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 860px; }
+    .pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.93); border: 1.5px solid rgba(255,255,255,.3);
+      border-radius: 22px; padding: 7px 13px; font-size: 13px; font-weight: 600;
+      color: var(--text); cursor: pointer; white-space: nowrap; transition: background .12s, transform .1s;
+    }
+    .pill:hover { background: #fff; transform: translateY(-1px); }
+    .pill.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+    /* Map section */
+    /* Map collapsible */
+    .map-section { padding: 0; position: relative; overflow: hidden; max-height: 0; transition: max-height .45s cubic-bezier(.4,0,.2,1); }
+    .map-section.open { max-height: 320px; }
+    #home-map { height: 300px; width: 100%; }
+
+    /* Airbnb-style floating map toggle */
+    .map-toggle-btn {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: #fff; border: none; border-radius: 28px;
+      padding: 13px 22px; font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.28); z-index: 500;
+      transition: background .15s, transform .15s, box-shadow .15s;
+      white-space: nowrap;
+    }
+    .map-toggle-btn:hover { background: #2a3f57; box-shadow: 0 6px 24px rgba(0,0,0,.32); transform: translateX(-50%) translateY(-2px); }
+    .map-toggle-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* Sections */
+    .main { max-width: 1380px; margin: 0 auto; padding: 0 40px; }
+    .section { padding-top: 44px; }
+    .section:last-of-type { padding-bottom: 64px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .section-left { display: flex; align-items: center; gap: 10px; }
+    .section-title { font-size: 1.2rem; font-weight: 700; }
+    .section-arrow { color: var(--green); font-size: 1.2rem; font-weight: 700; cursor: pointer; }
+    .nav-btns { display: flex; gap: 8px; }
+    .nav-btn { width: 32px; height: 32px; border: 1.5px solid var(--border); border-radius: 50%; background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text); transition: border-color .12s; }
+    .nav-btn:hover { border-color: var(--text); }
+
+    /* Cards track */
+    .cards-track { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth; scrollbar-width: none; }
+    .cards-track::-webkit-scrollbar { display: none; }
+
+    /* Card */
+    .card { flex: 0 0 200px; cursor: pointer; }
+    .card-thumb { position: relative; border-radius: var(--radius); overflow: hidden; width: 200px; height: 200px; background: #ddd; }
+    .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s cubic-bezier(.25,.46,.45,.94); }
+    .card:hover .card-thumb img { transform: scale(1.05); }
+    .card-badge { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,.94); border-radius: 7px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--text); max-width: 115px; line-height: 1.3; }
+    .card-heart { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; background: rgba(255,255,255,.88); border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+    .card-heart:hover { transform: scale(1.12); }
+    .card-heart.liked .hp { fill: var(--heart); stroke: var(--heart); }
+    .hi { width: 17px; height: 17px; }
+    .hp { fill: none; stroke: #555; stroke-width: 1.8; transition: fill .15s, stroke .15s; }
+    .card-info { padding: 10px 2px 0; }
+    .card-name { font-size: 13.5px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-address { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; line-height: 1.4; }
+    .card-rating { display: flex; align-items: center; gap: 4px; }
+    .stars { display: flex; gap: 1px; }
+    .star { font-size: 11px; color: var(--star); }
+    .star.e { color: #ddd; }
+    .rating-val { font-size: 12px; font-weight: 700; }
+
+    /* ─── DETAIL VIEW ────────────────────────────── */
+    #detail-view { display: none; }
+
+    /* Back bar */
+    .back-bar { position: sticky; top: 64px; background: var(--white); border-bottom: 1px solid var(--border); padding: 12px 40px; z-index: 200; display: flex; align-items: center; gap: 12px; }
+    .back-btn { background: none; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: background .12s; }
+    .back-btn:hover { background: var(--bg); }
+    .back-crumb { font-size: 13px; color: var(--muted); }
+    .back-crumb span { color: var(--text); font-weight: 600; }
+
+    /* Gallery */
+    .gallery { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 185px 185px; gap: 4px; height: 374px; }
+    .gallery-main { grid-row: 1 / 3; border-radius: 0; overflow: hidden; }
+    .gallery-main img, .gallery-side img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-side { overflow: hidden; }
+
+    /* Detail header */
+    .detail-header { background: var(--bg); padding: 32px 40px 0; }
+    .detail-header-inner { max-width: 780px; margin: 0 auto; text-align: center; }
+    .detail-title { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    .detail-address { font-size: 15px; color: var(--muted); margin-bottom: 24px; }
+    .llegar-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: var(--green); color: #fff; border: none; border-radius: 30px;
+      padding: 16px 0; width: 100%; max-width: 420px; margin: 0 auto 24px;
+      font-size: 16px; font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: background .15s;
+    }
+    .llegar-btn:hover { background: var(--green-dark); }
+
+    /* Stats row */
+    .stats-row { display: flex; gap: 12px; max-width: 780px; margin: 0 auto; padding-bottom: 24px; }
+    .stat-box { flex: 1; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+    .stat-big { font-size: 1.8rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 4px; }
+    .stat-stars { display: flex; justify-content: center; gap: 2px; margin-bottom: 4px; }
+    .stat-star { font-size: 14px; color: var(--star); }
+    .stat-star.e { color: #ddd; }
+    .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    /* Detail map */
+    .detail-map-wrap { margin: 0 -40px 0; border-radius: 0; overflow: hidden; height: 280px; position: relative; }
+    #place-detail-map { height: 100%; width: 100%; }
+    .detail-map-label {
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      background: white; border-radius: 20px; padding: 6px 16px;
+      font-size: 12px; font-weight: 600; color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,.18); pointer-events: none; z-index: 500;
+      white-space: nowrap;
+    }
+
+    /* Detail body */
+    .detail-body { max-width: 780px; margin: 0 auto; padding: 36px 40px 60px; }
+
+    .section-h { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+    .read-btn { display: flex; align-items: center; gap: 6px; color: var(--green); font-size: 13px; font-weight: 600; background: none; border: none; cursor: pointer; }
+    .detail-text { font-size: 14.5px; color: var(--text); line-height: 1.75; margin-bottom: 14px; }
+    .detail-hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+    /* Service/equip lists */
+    .svc-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .svc-item { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text); }
+    .svc-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+
+    /* Reviews */
+    .reviews-track { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth; scrollbar-width: none; margin: 0 -40px; padding: 0 40px 12px; }
+    .reviews-track::-webkit-scrollbar { display: none; }
+    .review-card { flex: 0 0 215px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .rev-user { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .rev-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; }
+    .rev-name { font-size: 13px; font-weight: 700; }
+    .rev-city { font-size: 11px; color: var(--muted); }
+    .rev-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .rev-stars { display: flex; gap: 1px; }
+    .rev-star { font-size: 10px; color: var(--star); }
+    .rev-time { font-size: 11px; color: var(--muted); }
+    .rev-text { font-size: 12.5px; color: var(--text); line-height: 1.55; text-align: justify; }
+
+    /* Write review */
+    .write-review { margin-top: 28px; }
+    .write-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; display: block; }
+    .write-textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 14px; font-family: inherit; color: var(--text); resize: none; height: 110px; outline: none; transition: border-color .15s; }
+    .write-textarea:focus { border-color: var(--green); }
+    .publish-btn { width: 100%; background: var(--text); color: #fff; border: none; border-radius: 10px; padding: 16px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 12px; transition: opacity .15s; font-family: inherit; }
+    .publish-btn:hover { opacity: .85; }
+
+    /* Leaflet tooltip override */
+    .map-tip { background: #1a2e44; color: white; border: none; border-radius: 8px; padding: 6px 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+    .map-tip::before { border-top-color: #1a2e44 !important; }
+    .leaflet-tooltip { pointer-events: none; }
+
+    /* Leaflet custom marker */
+    .custom-marker { background: var(--green); border: 2px solid #fff; border-radius: 50%; width: 16px; height: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+    .custom-marker.active { background: #FF385C; width: 20px; height: 20px; }
+
+    @media (max-width: 768px) {
+      .navbar, .back-bar { padding: 0 20px; }
+      .gallery { height: 280px; grid-template-rows: 140px 140px; }
+      .main { padding: 0 20px; }
+      .detail-header { padding: 24px 20px 0; }
+      .detail-body { padding: 28px 20px 48px; }
+      #home-map { height: 300px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVBAR (shared) ──────────────────────────── -->
+<nav class="navbar">
+  <div class="logo" onclick="showHome()">
+    <div class="logo-badge">
+      <svg width="22" height="10" viewBox="0 0 22 10" fill="none">
+        <path d="M1 10 L4 3 L7.5 7 L11 0 L14.5 7 L18 3 L21 10 Z" fill="white"/>
+      </svg>
+      <span class="logo-lbl">STGO</span>
+    </div>
+  </div>
+  <button class="hamburger">
+    <div class="ham-lines"><div class="ham-line"></div><div class="ham-line"></div><div class="ham-line"></div></div>
+    <div class="avatar">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="5.5" r="3" fill="white"/>
+        <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="white" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+  </button>
+</nav>
+
+<!-- ════════════════════════════════════════════════
+     HOME VIEW
+════════════════════════════════════════════════ -->
+<div id="home-view">
+
+  <!-- Hero -->
+  <section class="hero">
+    <img class="hero-img"
+      src="https://commons.wikimedia.org/wiki/Special:FilePath/Plaza_de_la_Constitución_Chile.jpg?width=1400"
+      alt="Plaza de la Constitución, Santiago de Chile"
+      onerror="this.src='https://commons.wikimedia.org/wiki/Special:FilePath/Plaza_de_la_Constitución,_Santiago_(5184550083).jpg?width=1400'">
+    <div class="hero-overlay">
+      <h1 class="hero-title">Explora plazas y áreas verdes de Santiago</h1>
+
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar plazas o direcciones" id="searchInput">
+        <div class="sdiv"></div>
+        <button class="filter-btn">
+          Filtros
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <polyline points="2,4 7,10 12,4" stroke="#333" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          </svg>
+        </button>
+        <button class="search-submit">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <circle cx="7.5" cy="7.5" r="5.5" stroke="white" stroke-width="2"/>
+            <line x1="11.5" y1="11.5" x2="16" y2="16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="pills-row" id="pillsRow">
+        <button class="pill" data-filter="ciclovias">🚲 Ciclovías</button>
+        <button class="pill" data-filter="caniles">🐕 Caniles</button>
+        <button class="pill" data-filter="juegos">🛝 Juegos infantiles</button>
+        <button class="pill" data-filter="cafeterias">☕ Cafeterías</button>
+        <button class="pill" data-filter="ejercicio">💪 Máquinas de ejercicio</button>
+        <button class="pill" data-filter="senderos">🚶 Senderos peatonales</button>
+        <button class="pill" data-filter="canchas">⚽ Canchas deportivas</button>
+        <button class="pill">···</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Map -->
+  <div class="map-section">
+    <div id="home-map"></div>
+  </div>
+
+  <!-- Airbnb-style floating map toggle -->
+  <button class="map-toggle-btn" id="mapToggleBtn" onclick="toggleMap()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round">
+      <polygon points="1,3 6,1 10,5 15,2 15,13 10,11 6,15 1,12"/>
+      <line x1="6" y1="1" x2="6" y2="15"/>
+      <line x1="10" y1="5" x2="10" y2="11"/>
+    </svg>
+    <span id="mapToggleLabel">Mostrar mapa</span>
+  </button>
+
+  <!-- Cards -->
+  <div class="main">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-left">
+          <h2 class="section-title">Plazas destacadas en Santiago</h2>
+          <span class="section-arrow">→</span>
+        </div>
+        <div class="nav-btns">
+          <button class="nav-btn" onclick="scrollTrack('t-destacadas',-1)">←</button>
+          <button class="nav-btn" onclick="scrollTrack('t-destacadas',1)">→</button>
+        </div>
+      </div>
+      <div class="cards-track" id="t-destacadas"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-left">
+          <h2 class="section-title">Plazas cerca de ti</h2>
+          <span class="section-arrow">→</span>
+        </div>
+        <div class="nav-btns">
+          <button class="nav-btn" onclick="scrollTrack('t-cercanas',-1)">←</button>
+          <button class="nav-btn" onclick="scrollTrack('t-cercanas',1)">→</button>
+        </div>
+      </div>
+      <div class="cards-track" id="t-cercanas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DETAIL VIEW
+════════════════════════════════════════════════ -->
+<div id="detail-view">
+  <div class="back-bar">
+    <button class="back-btn" onclick="showHome()">←</button>
+    <span class="back-crumb">Plazas de Santiago / <span id="d-crumb"></span></span>
+  </div>
+
+  <!-- Gallery -->
+  <div class="gallery">
+    <div class="gallery-main"><img id="d-img0" src="" alt=""></div>
+    <div class="gallery-side"><img id="d-img1" src="" alt=""></div>
+    <div class="gallery-side"><img id="d-img2" src="" alt=""></div>
+  </div>
+
+  <!-- Header -->
+  <div class="detail-header">
+    <div class="detail-header-inner">
+      <h1 class="detail-title" id="d-name"></h1>
+      <p class="detail-address" id="d-address"></p>
+      <a class="llegar-btn" id="d-maps-link" href="#" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="3" y="2" width="12" height="14" rx="2" stroke="white" stroke-width="1.5"/>
+          <line x1="6" y1="6" x2="12" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="6" y1="9" x2="12" y2="9" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="6" y1="12" x2="10" y2="12" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Cómo llegar
+      </a>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-big" id="d-rating-num"></div>
+          <div class="stat-stars" id="d-stat-stars"></div>
+          <div class="stat-label">Calificación</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-big" id="d-reviews-num"></div>
+          <div style="margin-bottom:4px"></div>
+          <div class="stat-label">Reseñas</div>
+        </div>
+        <div class="stat-box" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;" id="d-mini-map-box">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="12" r="6" stroke="#009B77" stroke-width="2"/>
+            <circle cx="14" cy="12" r="2.5" fill="#009B77"/>
+            <path d="M14 18 C14 18 8 23 14 26 C20 23 14 18 14 18Z" fill="#009B77" opacity=".4"/>
+          </svg>
+          <div class="stat-label">Ver en mapa</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="background:var(--bg);padding:1px 0;">
+    <div class="detail-body" id="detail-body">
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ══════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════ */
+const W = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+const WP = (f,w=800) => `${W}${encodeURIComponent(f)}?width=${w}`;
+const PIC = (seed,w=800,h=600) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
+
+const PLACES = [
+  {
+    id: 'paseo-bulnes',
+    name: 'Paseo Bulnes',
+    address: 'Entre las calles Nataniel Cox y San Diego',
+    rating: 4.5, reviews_count: 7,
+    badge: 'Apto para mascotas',
+    coords: [-33.4538, -70.6507],
+    tags: ['caniles','ciclovias'],
+    photos: [
+      WP('WLMCL 2013 - Paseo Bulnes 01.jpg'),
+      WP('WLMCL 2013 - Paseo Bulnes 02.jpg'),
+      WP('WLMCL 2013 - Paseo Bulnes 06.JPG')
+    ],
+    historia: 'El Paseo Bulnes es un eje urbano histórico ubicado en el corazón de Santiago. Su origen se remonta a la década de 1930, cuando el Estado impulsó un ambicioso plan de modernización urbana que buscaba reorganizar el centro cívico de la capital. El proyecto contemplaba una conexión directa entre el Palacio de La Moneda y el Parque Almagro, generando un paseo peatonal amplio, rodeado de edificios públicos y residenciales de estilo moderno para la época.\n\nA lo largo de los años, el paseo ha sido escenario de actos cívicos, manifestaciones, ferias y encuentros culturales, consolidándose como un espacio de reunión ciudadana. Su diseño refleja la intención de crear un entorno armónico entre arquitectura, espacio público y vida urbana.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad (rampas, tránsito universal)','🍽️ Restaurantes','☕ Cafeterías','🏪 Locales comerciales','🎭 Espacio para eventos culturales','👥 Punto de encuentro social','🏃 Actividades ciudadanas','🚲 Ciclovías'],
+    equipamiento: ['🪑 Espacios para sentarse','🐕 Caniles','🚶 Pavimento peatonal (circulación)','🗿 Monumentos','🏛️ Memoriales'],
+    entorno: ['🌿 Áreas verdes','🌸 Jardines ornamentales','🏛️ Arquitectura patrimonial','🚶 Espacio abierto peatonal','🏙️ Eje cívico / urbano'],
+    reviews: [
+      {name:'Francisca Pérez',time:'Hace 3 semanas',rating:5,text:'Excelente plaza recreativa, pero los basureros no se sabe bien donde están y parece que son muy pocos para lo grande que es la plaza.'},
+      {name:'Juan Morales',time:'Hace 1 mes',rating:4,text:'Paseo para caminar y descansar, con buena ubicación céntrica, aunque falta mantención en áreas verdes más seguridad durante la noche.'},
+      {name:'Andrea Mancilla',time:'Hace 2 meses',rating:4,text:'Paseo agradable en pleno centro, con espacios amplios para recorrer, aunque hay pocos asientos y falta limpieza en sectores.'},
+      {name:'José Montenegro',time:'Hace 2 meses',rating:5,text:'La zona es tranquila para pasear de día, con arquitectura interesante alrededor.'},
+      {name:'Carla Montero',time:'Hace 4 meses',rating:4,text:'Es un parque muy completo y bien ubicado, ideal para caminar, andar en bicicleta o simplemente descansar.'},
+      {name:'María José Avendaño',time:'Hace 4 meses',rating:5,text:'Un espacio tranquilo dentro del centro, con áreas verdes y zonas para hacer deporte.'},
+      {name:'Joaquín Beltrán',time:'Hace 5 meses',rating:4,text:'Una plaza pequeña pero útil para el barrio, con juegos para niños y espacios de descanso.'}
+    ]
+  },
+  {
+    id: 'parque-almagro',
+    name: 'Parque Almagro',
+    address: 'Av. Santa Isabel, entre las calles San Ignacio y San Diego',
+    rating: 5.0, reviews_count: 12,
+    badge: 'Amplias áreas verdes',
+    coords: [-33.4600, -70.6490],
+    tags: ['senderos','ejercicio'],
+    photos: [
+      WP('Parque_Almagro.JPG'),
+      WP('Fuente_de_agua_-_Parque_Almagro.jpg'),
+      WP('Parque_Almagro_con_Sn_Ignacio_de_Loyola_fRF01.jpg')
+    ],
+    historia: 'El Parque Almagro forma parte del eje cívico proyectado en la década del 30 bajo el plan urbanístico de Karl Brunner. Este espacio verde actúa como remate sur del Paseo Bulnes, ofreciendo un pulmón verde para el centro de Santiago.\n\nEl parque fue inaugurado en 1985 y desde entonces ha sido un lugar de encuentro para vecinos del sector, con áreas de descanso, juegos infantiles y senderos peatonales rodeados de vegetación nativa y ornamental.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad','🏃 Pista de trote','🌳 Áreas de descanso','🛝 Juegos infantiles','👥 Punto de encuentro social'],
+    equipamiento: ['🪑 Bancas y mobiliario urbano','🌿 Jardines ornamentales','🐕 Sector para mascotas','💪 Máquinas de ejercicio'],
+    entorno: ['🏛️ Arquitectura patrimonial','🌿 Áreas verdes','🚶 Espacio abierto peatonal'],
+    reviews: [
+      {name:'Roberto Silva',time:'Hace 1 semana',rating:5,text:'Un parque precioso en el corazón de Santiago. Ideal para hacer deporte o simplemente relajarse.'},
+      {name:'Daniela Fuentes',time:'Hace 2 semanas',rating:5,text:'Lo mejor del sector. Muy bien cuidado y con buena iluminación nocturna.'},
+      {name:'Carlos Vega',time:'Hace 1 mes',rating:4,text:'Agradable para caminar con la familia. Las máquinas de ejercicio son un plus.'}
+    ]
+  },
+  {
+    id: 'plaza-constitucion',
+    name: 'Plaza de la Constitución',
+    address: 'Calle Morandé s/n, frente al Palacio de La Moneda',
+    rating: 4.0, reviews_count: 9,
+    badge: null,
+    coords: [-33.4426, -70.6537],
+    tags: ['senderos'],
+    photos: [
+      WP('Chilean_Flag_-_La_Moneda_-_Presidential_Palace_-_Santiago,_Chile_(5278032822).jpg'),
+      WP('Palacio_de_La_Moneda_001.JPG'),
+      WP('Palacio_de_la_Moneda_por_detrás.JPG')
+    ],
+    historia: 'La Plaza de la Constitución se ubica frente al Palacio de La Moneda, sede del gobierno de Chile. Es uno de los espacios cívicos más importantes del país y escenario de ceremonias oficiales, cambios de guardia y manifestaciones ciudadanas.\n\nFue diseñada para realzar la majestuosidad del Palacio de La Moneda y crear un espacio de representación del poder del Estado frente a la ciudadanía.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad','👮 Seguridad permanente','📸 Punto turístico','🎭 Ceremonias oficiales'],
+    equipamiento: ['🌿 Jardines formales','🗿 Monumentos','🪑 Áreas de descanso'],
+    entorno: ['🏛️ Palacio de La Moneda','🌿 Áreas verdes','🚶 Espacio abierto peatonal','🏙️ Eje cívico / urbano'],
+    reviews: [
+      {name:'Patricia Ríos',time:'Hace 1 semana',rating:4,text:'Lugar emblemático. El cambio de guardia es muy vistoso. Falta más verde.'},
+      {name:'Sebastián Torres',time:'Hace 3 meses',rating:5,text:'Impresionante la magnitud del espacio y su historia. Un must de Santiago.'}
+    ]
+  },
+  {
+    id: 'plaza-las-heras',
+    name: 'Plaza Las Heras',
+    address: 'Avenida Ejército Libertador con calle Gorbea',
+    rating: 4.0, reviews_count: 5,
+    badge: 'Recientemente mejorada',
+    coords: [-33.4614, -70.6596],
+    tags: ['juegos','caniles'],
+    photos: [
+      WP('Plaza_Las_Heras,_Santiago_20220626.jpg'),
+      WP('Barrio_Civico,_Eje_Bulnes_y_Parque_Almagro_11.jpg'),
+      WP('Parque_Almagro_20171203_fRF01.jpg')
+    ],
+    historia: 'La Plaza Las Heras es un espacio de barrio recientemente renovado que sirve como punto de encuentro para los residentes del sector. Fue mejorada con nueva iluminación, juegos infantiles y áreas para mascotas.\n\nSu ubicación estratégica cerca del Ejército Libertador la convierte en un paseo cotidiano para familias y vecinos.',
+    servicios: ['💡 Iluminación pública','🛝 Juegos infantiles','🐕 Caniles','♿ Accesibilidad'],
+    equipamiento: ['🪑 Bancas','🌿 Áreas verdes','🐕 Sector para mascotas'],
+    entorno: ['🌿 Áreas verdes residenciales','🚶 Paseo vecinal'],
+    reviews: [
+      {name:'Marcela Jiménez',time:'Hace 2 semanas',rating:4,text:'Muy linda la remodelación. Los niños disfrutan mucho los juegos nuevos.'},
+      {name:'Felipe Rojas',time:'Hace 1 mes',rating:4,text:'Agradable para pasear al perro. Buena mantención.'}
+    ]
+  },
+  {
+    id: 'bandejon-alameda',
+    name: 'Bandejón Central Alameda',
+    address: 'Av. Libertador Bernardo O\'Higgins, entre calles Morandé y Teatinos',
+    rating: 4.0, reviews_count: 6,
+    badge: 'Ciclovías',
+    coords: [-33.4431, -70.6532],
+    tags: ['ciclovias','senderos'],
+    photos: [
+      WP('Alameda_Santiago_Centro.JPG'),
+      WP('2017_Santiago_de_Chile_-_Sombras_en_la_avenida_Las_Palmas_-_Quinta_Normal_de_Agricultura.jpg'),
+      WP('Barrio_Cívico,_La_Moneda.JPG')
+    ],
+    historia: 'El Bandejón Central de la Alameda es el pulmón verde del principal eje vial de Santiago. Con sus amplias ciclovías y senderos peatonales, conecta varios puntos clave de la ciudad.\n\nEste espacio lineal es utilizado a diario por miles de santiaguinos para desplazarse en bicicleta o simplemente caminar bajo la sombra de sus árboles centenarios.',
+    servicios: ['🚲 Ciclovías bidireccionales','🚶 Senderos peatonales','💡 Iluminación pública','♿ Accesibilidad'],
+    equipamiento: ['🚲 Estacionamientos de bicicletas','🪑 Bancas','🌳 Arborización'],
+    entorno: ['🏙️ Corredor urbano principal','🌿 Áreas verdes lineales'],
+    reviews: [
+      {name:'Andrés Moya',time:'Hace 1 semana',rating:4,text:'Excelente para ir en bicicleta. La ciclovía está bien delimitada.'},
+      {name:'Valeria Lagos',time:'Hace 1 mes',rating:4,text:'Lindo paseo por la tarde. Los árboles dan mucha sombra.'}
+    ]
+  },
+  {
+    id: 'parque-ohiggins',
+    name: 'Parque O\'Higgins',
+    address: 'El Parque 1080, Santiago',
+    rating: 5.0, reviews_count: 24,
+    badge: null,
+    coords: [-33.4660, -70.6593],
+    tags: ['senderos','ejercicio','canchas','ciclovias'],
+    photos: [
+      WP('Parque_O\'Higgins_(16363975051).jpg'),
+      WP('Parque_O\'Higgins_-_Explanada_-_1.jpg'),
+      WP('Entrando_al_Parque_O\'Higgins,_Santiago_de_Chile_-_panoramio.jpg')
+    ],
+    historia: 'El Parque O\'Higgins es el parque urbano más grande del centro de Santiago, con una extensión de más de 90 hectáreas. Lleva el nombre del prócer de la Independencia de Chile, Bernardo O\'Higgins.\n\nFue inaugurado en 1966 y desde entonces se ha convertido en el pulmón verde más importante de la capital, con jardines, lagunas, pistas de patinaje, estadio y el Parque de las Esculturas.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad','⚽ Canchas deportivas','🏊 Piscinas (temporada)','🎠 Juegos infantiles','☕ Cafeterías','🛍️ Ferias y eventos'],
+    equipamiento: ['🚲 Ciclovías','💪 Máquinas de ejercicio','🏟️ Estadio','🎭 Teatro al aire libre','🪑 Áreas de picnic'],
+    entorno: ['🌿 Extensas áreas verdes','🦆 Laguna artificial','🌺 Jardines ornamentales','🌳 Bosque nativo'],
+    reviews: [
+      {name:'Camila Herrera',time:'Hace 3 días',rating:5,text:'El mejor parque de Santiago sin duda. Hay de todo: deporte, naturaleza y entretenimiento.'},
+      {name:'Diego Soto',time:'Hace 1 semana',rating:5,text:'Ideal para pasar el día completo con la familia. Muy bien mantenido.'},
+      {name:'Lorena Paz',time:'Hace 2 semanas',rating:5,text:'La laguna es preciosa y las áreas verdes son enormes. Un parque de lujo.'}
+    ]
+  },
+  {
+    id: 'plaza-brasil',
+    name: 'Plaza Brasil',
+    address: 'Compañía de Jesús 208, Santiago',
+    rating: 3.5, reviews_count: 8,
+    badge: null,
+    coords: [-33.4406, -70.6696],
+    tags: ['juegos'],
+    photos: [
+      WP('Plaza_Brasil,_Barrio_Brasil.jpg'),
+      WP('Plaza_Brasil,_Barrio_Brasil,_Juegos_de_Niños.jpg'),
+      WP('Edificio_Patrimonial_de_1912,_Plaza_Brasil,_Barrio_Brasil.jpg')
+    ],
+    historia: 'La Plaza Brasil es el corazón del barrio homónimo, uno de los sectores más bohemios y culturales de Santiago. Rodeada de bares, restaurantes y edificios de estilo art decó, es un punto de encuentro para artistas y jóvenes.\n\nEl barrio Brasil es conocido por su arquitectura patrimonial y su ambiente nocturno vibrante.',
+    servicios: ['💡 Iluminación pública','🛝 Juegos infantiles','🍽️ Restaurantes cercanos','🎭 Actividades culturales'],
+    equipamiento: ['🪑 Bancas','🌿 Áreas verdes','🗿 Estatua central'],
+    entorno: ['🏛️ Arquitectura patrimonial art decó','🎨 Barrio cultural y bohemio','🍻 Vida nocturna'],
+    reviews: [
+      {name:'Ignacio Campos',time:'Hace 2 semanas',rating:3,text:'La plaza en sí es pequeña pero el barrio alrededor es muy pintoresco.'},
+      {name:'Sofía Muñoz',time:'Hace 1 mes',rating:4,text:'Rico ambiente bohemio. Hay que ir de noche cuando está más animado.'}
+    ]
+  },
+  {
+    id: 'parque-quinta-normal',
+    name: 'Parque Quinta Normal',
+    address: 'Av. Matucana 520, Santiago',
+    rating: 4.5, reviews_count: 19,
+    badge: 'Jardines ornamentales',
+    coords: [-33.4353, -70.6893],
+    tags: ['senderos','juegos'],
+    photos: [
+      WP('Laguna_Parque_Quinta_Normal_--_GISLECHTVALK_GI.JPG'),
+      WP('Interior_Parque_Quinta_Normal_-_Borde_Laguna.JPG'),
+      WP('2017_Santiago_de_Chile_-_Avenida_Las_Palmas_de_la_Quinta_Normal_de_Agricultura.jpg')
+    ],
+    historia: 'El Parque Quinta Normal es uno de los parques más tradicionales y queridos de Santiago. Fue creado en 1842 con fines agrícolas y botánicos, y actualmente es un importante espacio cultural que alberga varios museos.\n\nSu gran laguna artificial, sus jardines de plantas nativas y exóticas, y su arboleda centenaria lo convierten en un refugio de biodiversidad urbana en el corazón de Santiago.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad','🏛️ Museos','🛶 Botes en laguna','🛝 Juegos infantiles','☕ Cafeterías'],
+    equipamiento: ['🌊 Laguna artificial','🏛️ 4 museos','🌸 Jardín botánico','🪑 Áreas de picnic','🚲 Ciclovías'],
+    entorno: ['🌿 Bosque urbano denso','🌺 Jardines ornamentales','🦆 Fauna silvestre','🏛️ Complejo cultural'],
+    reviews: [
+      {name:'Natalia Espinoza',time:'Hace 1 semana',rating:5,text:'Uno de los más lindos de Santiago. La laguna es un espectáculo y los museos son increíbles.'},
+      {name:'Ricardo Guzmán',time:'Hace 3 semanas',rating:4,text:'Muy buen parque para ir con niños. Los botes son un clásico.'},
+      {name:'Josefina Pardo',time:'Hace 1 mes',rating:5,text:'Los jardines están impecables. Me encanta la variedad de árboles.'}
+    ]
+  },
+  {
+    id: 'plaza-de-armas',
+    name: 'Plaza de Armas',
+    address: 'Pl. de Armas, Santiago Centro',
+    rating: 4.0, reviews_count: 31,
+    badge: null,
+    coords: [-33.4372, -70.6506],
+    tags: ['senderos'],
+    photos: [
+      WP('Plaza_Armas_Santiago_Chile.JPG'),
+      WP('Estatua_de_Pedro_de_Valdivia,_Plaza_de_Armas_de_Santiago.JPG'),
+      WP('PlazaArmasSantiago.JPG')
+    ],
+    historia: 'La Plaza de Armas de Santiago es el punto central de la ciudad desde su fundación en 1541 por Pedro de Valdivia. Es el kilómetro cero de Chile y uno de los lugares más visitados por turistas y santiaguinos.\n\nRodeada por la Catedral Metropolitana, el Museo Histórico Nacional y el edificio del Correo Central, la plaza es testigo permanente de la historia del país.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad total','📸 Punto turístico principal','🎭 Espectáculos callejeros','☕ Cafeterías y locales'],
+    equipamiento: ['🪑 Bancas y jardines','🗿 Monumento a Pedro de Valdivia','🌿 Palmeras y arboleda','🏛️ Edificios históricos'],
+    entorno: ['⛪ Catedral Metropolitana','🏛️ Museo Histórico Nacional','📮 Correo Central','🏙️ Centro histórico'],
+    reviews: [
+      {name:'María González',time:'Hace 2 días',rating:4,text:'El corazón de Santiago. Muy animada a toda hora del día.'},
+      {name:'Pedro Araya',time:'Hace 1 semana',rating:4,text:'Lugar histórico imprescindible. Un poco concurrida pero muy emblemática.'},
+      {name:'Ana Vargas',time:'Hace 2 meses',rating:5,text:'Hermosa plaza con mucha historia. Los edificios de alrededor son espectaculares.'}
+    ]
+  },
+  {
+    id: 'parque-portales',
+    name: 'Parque Portales',
+    address: 'Av. Portales 2847, Santiago',
+    rating: 5.0, reviews_count: 11,
+    badge: 'Amplias áreas verdes',
+    coords: [-33.4502, -70.6882],
+    tags: ['senderos','ejercicio','caniles'],
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1518005062-dba1b04d5dcc?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80'
+    ],
+    historia: 'El Parque Portales es un espacio verde del sector poniente de Santiago, muy apreciado por los vecinos de la zona. Sus amplias áreas verdes y senderos lo convierten en un lugar ideal para el deporte y el esparcimiento familiar.\n\nCuenta con modernas instalaciones deportivas y es un ejemplo de renovación urbana en el sector.',
+    servicios: ['💡 Iluminación pública','♿ Accesibilidad','💪 Máquinas de ejercicio','🐕 Caniles','🛝 Juegos infantiles'],
+    equipamiento: ['🌿 Amplias áreas verdes','🪑 Bancas','🏃 Pista de trote','🐕 Sector para mascotas'],
+    entorno: ['🌿 Zona residencial verde','🏘️ Barrio tranquilo'],
+    reviews: [
+      {name:'Lucía Fernández',time:'Hace 4 días',rating:5,text:'Parque limpio y seguro. Ideal para el deporte matutino.'},
+      {name:'Tomás Alarcón',time:'Hace 3 semanas',rating:5,text:'El mejor parque del sector poniente. Muy bien mantenido.'}
+    ]
+  },
+  {
+    id: 'parque-san-borja',
+    name: 'Parque San Borja',
+    address: 'Jaime Eyzaguirre 5, Santiago',
+    rating: 4.0, reviews_count: 7,
+    badge: 'Recientemente mejorada',
+    coords: [-33.4461, -70.6432],
+    tags: ['juegos','cafeterias'],
+    photos: [
+      'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80'
+    ],
+    historia: 'El Parque San Borja fue recientemente remodelado como parte de un plan de mejoramiento de los espacios públicos del barrio Yungay. El proyecto incluyó nuevos senderos, iluminación LED, áreas de juego y cafeterías.\n\nSu ubicación céntrica lo hace accesible para residentes y turistas que visitan el cercano barrio histórico.',
+    servicios: ['💡 Iluminación LED','♿ Accesibilidad','☕ Cafetería','🛝 Juegos infantiles','📶 WiFi gratuito'],
+    equipamiento: ['🌿 Jardines modernos','🪑 Mobiliario urbano nuevo','🛝 Área infantil'],
+    entorno: ['🏘️ Barrio Yungay','🏛️ Arquitectura histórica'],
+    reviews: [
+      {name:'Carolina Mendez',time:'Hace 1 semana',rating:4,text:'La remodelación quedó muy bonita. Los niños disfrutan mucho.'},
+      {name:'Francisco Pérez',time:'Hace 2 meses',rating:4,text:'Lindo parque para el barrio. Ojalá mantuvieran así siempre.'}
+    ]
+  },
+  {
+    id: 'plaza-san-isidro',
+    name: 'Plaza San Isidro',
+    address: 'Sta. Victoria 566, Santiago',
+    rating: 4.0, reviews_count: 5,
+    badge: 'Monumentos',
+    coords: [-33.4568, -70.6488],
+    tags: [],
+    photos: [
+      'https://images.unsplash.com/photo-1566438480900-0609be27a4be?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=800&auto=format&fit=crop&q=80'
+    ],
+    historia: 'La Plaza San Isidro es un espacio público de barrio que destaca por sus monumentos y su valor histórico para la comunidad local. Fue construida a inicios del siglo XX y ha sido punto de encuentro generacional para los vecinos del sector.\n\nSu tranquilidad y sus monumentos la hacen un remanso dentro del bullicioso centro santiaguino.',
+    servicios: ['💡 Iluminación pública','🗿 Monumentos históricos','🪑 Área de descanso'],
+    equipamiento: ['🗿 Monumentos','🌿 Áreas verdes','🪑 Bancas'],
+    entorno: ['🏘️ Barrio residencial histórico','🌿 Arboleda centenaria'],
+    reviews: [
+      {name:'Elena Castro',time:'Hace 2 semanas',rating:4,text:'Plaza tranquila y con historia. Los monumentos son interesantes.'},
+      {name:'Gonzalo Muñoz',time:'Hace 3 meses',rating:4,text:'Un lugar de reposo en el barrio. Bien cuidada.'}
+    ]
+  }
+];
+
+const FEATURED_IDS = ['paseo-bulnes','parque-almagro','plaza-constitucion','plaza-las-heras','bandejon-alameda','parque-ohiggins','plaza-brasil'];
+const NEARBY_IDS  = ['parque-ohiggins','parque-quinta-normal','plaza-brasil','plaza-de-armas','parque-portales','parque-san-borja','plaza-san-isidro'];
+
+const placeMap = Object.fromEntries(PLACES.map(p => [p.id, p]));
+
+/* ── Helpers ───────────────────────────────────── */
+function stars(n, cls='star', eCls='e') {
+  return Array.from({length:5},(_,i)=>`<span class="${cls}${i<Math.round(n)?'':' '+eCls}">★</span>`).join('');
+}
+
+function heartSVG() {
+  return `<svg class="hi" viewBox="0 0 24 24"><path class="hp" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+}
+
+function buildCard(place) {
+  const badge = place.badge ? `<span class="card-badge">${place.badge}</span>` : '';
+  return `
+    <div class="card" data-id="${place.id}" data-tags="${place.tags.join(',')}">
+      <div class="card-thumb">
+        <img src="${place.photos[0]}" alt="${place.name}" loading="lazy"
+          onerror="this.src='https://picsum.photos/seed/${place.id}/400/400'">
+        ${badge}
+        <button class="card-heart" aria-label="Guardar">${heartSVG()}</button>
+      </div>
+      <div class="card-info">
+        <div class="card-name">${place.name}</div>
+        <div class="card-address">${place.address}</div>
+        <div class="card-rating">
+          <div class="stars">${stars(place.rating)}</div>
+          <span class="rating-val">${place.rating.toFixed(1)}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderTrack(trackId, ids) {
+  document.getElementById(trackId).innerHTML = ids.map(id => buildCard(placeMap[id])).join('');
+}
+
+function scrollTrack(id, dir) {
+  document.getElementById(id).scrollBy({left: dir * 440, behavior: 'smooth'});
+}
+
+/* ── HOME MAP ────────────────────────────────────── */
+let homeMap;
+function initHomeMap() {
+  homeMap = L.map('home-map', {zoomControl: true, scrollWheelZoom: false}).setView([-33.448, -70.662], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(homeMap);
+
+  const pinIcon = (active = false) => L.divIcon({
+    className: '',
+    html: `<svg width="${active?40:32}" height="${active?52:42}" viewBox="0 0 36 46" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))">
+      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 28 18 28S36 31.5 36 18C36 8.059 27.941 0 18 0z"
+        fill="#009B77" stroke="white" stroke-width="2.5"/>
+      <circle cx="18" cy="18" r="7" fill="white"/>
+    </svg>`,
+    iconSize: [active?40:32, active?52:42],
+    iconAnchor: [active?20:16, active?52:42],
+    popupAnchor: [0, active?-54:-44]
+  });
+
+  PLACES.forEach(p => {
+    const marker = L.marker(p.coords, { icon: pinIcon() }).addTo(homeMap);
+
+    // Hover tooltip
+    marker.bindTooltip(`<strong>${p.name}</strong><br><span style="font-size:11px;color:#555">${p.address}</span>`, {
+      direction: 'top', offset: [0, -44], className: 'map-tip'
+    });
+
+    // Click → navigate to detail page
+    marker.on('click', () => showDetail(p.id));
+  });
+}
+
+/* ── ROUTING ─────────────────────────────────────── */
+let detailMap = null;
+function showHome() {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('home-view').style.display  = 'block';
+  document.getElementById('mapToggleBtn').style.display = 'flex';
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+  document.title = 'Vecino — Plazas y Áreas Verdes de Santiago';
+  window.scrollTo(0,0);
+  setTimeout(()=>homeMap && homeMap.invalidateSize(), 50);
+}
+
+function showDetail(placeId) {
+  const p = placeMap[placeId];
+  if (!p) return;
+
+  document.getElementById('home-view').style.display   = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.getElementById('mapToggleBtn').style.display = 'none';
+  window.scrollTo(0,0);
+  document.title = `${p.name} — Vecino`;
+
+  // Gallery
+  ['d-img0','d-img1','d-img2'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.src = p.photos[i] || p.photos[0];
+    el.onerror = () => el.src = `https://picsum.photos/seed/${p.id}${i}/800/500`;
+    el.alt = p.name;
+  });
+
+  // Header
+  document.getElementById('d-crumb').textContent = p.name;
+  document.getElementById('d-name').textContent  = p.name;
+  document.getElementById('d-address').textContent = p.address;
+  document.getElementById('d-maps-link').href =
+    `https://www.google.com/maps/search/?api=1&query=${p.coords[0]},${p.coords[1]}`;
+
+  // Stats
+  document.getElementById('d-rating-num').textContent = p.rating.toFixed(1);
+  document.getElementById('d-stat-stars').innerHTML = stars(p.rating,'stat-star','e');
+  document.getElementById('d-reviews-num').textContent = p.reviews_count;
+
+  // Mini map click
+  document.getElementById('d-mini-map-box').onclick = () =>
+    window.open(`https://www.google.com/maps/search/?api=1&query=${p.coords[0]},${p.coords[1]}`, '_blank');
+
+  // Body
+  document.getElementById('detail-body').innerHTML = buildDetailBody(p);
+
+  // Detail map — destroy previous instance first
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+  setTimeout(() => {
+    detailMap = L.map('place-detail-map', {
+      zoomControl: true,
+      scrollWheelZoom: false,
+      dragging: true,
+      attributionControl: false
+    }).setView(p.coords, 16);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 20
+    }).addTo(detailMap);
+
+    // Teardrop / Google Maps style pin
+    const pinIcon = L.divIcon({
+      className: '',
+      html: `<svg width="36" height="46" viewBox="0 0 36 46" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 28 18 28S36 31.5 36 18C36 8.059 27.941 0 18 0z"
+          fill="#009B77" stroke="white" stroke-width="2"/>
+        <circle cx="18" cy="18" r="7" fill="white"/>
+      </svg>`,
+      iconSize: [36, 46],
+      iconAnchor: [18, 46],
+      popupAnchor: [0, -46]
+    });
+
+    L.marker(p.coords, { icon: pinIcon })
+      .addTo(detailMap)
+      .bindPopup(`<strong style="font-size:13px">${p.name}</strong><br><span style="font-size:11px;color:#717171">${p.address}</span>`, { closeButton: false })
+      .openPopup();
+  }, 80);
+}
+
+function buildDetailBody(p) {
+  const histParas = p.historia.split('\n\n').map(t=>`<p class="detail-text">${t}</p>`).join('');
+
+  const svcList  = p.servicios.map(s => `<li class="svc-item"><span class="svc-icon">${s.split(' ')[0]}</span>${s.slice(s.indexOf(' ')+1)}</li>`).join('');
+  const eqList   = p.equipamiento.map(s => `<li class="svc-item"><span class="svc-icon">${s.split(' ')[0]}</span>${s.slice(s.indexOf(' ')+1)}</li>`).join('');
+  const entList  = p.entorno.map(s => `<li class="svc-item"><span class="svc-icon">${s.split(' ')[0]}</span>${s.slice(s.indexOf(' ')+1)}</li>`).join('');
+
+  const revCards = p.reviews.map((r,i) => `
+    <div class="review-card">
+      <div class="rev-user">
+        <img class="rev-avatar" src="https://i.pravatar.cc/60?img=${(i+1)*3}" alt="${r.name}" onerror="this.style.background='#ddd'">
+        <div>
+          <div class="rev-name">${r.name}</div>
+          <div class="rev-city">Santiago, Chile.</div>
+        </div>
+      </div>
+      <div class="rev-meta">
+        <div class="rev-stars">${stars(r.rating,'rev-star','')}</div>
+        <span class="rev-time">${r.time}.</span>
+      </div>
+      <p class="rev-text">${r.text}</p>
+    </div>`).join('');
+
+  return `
+    <div class="section-h">Historia <button class="read-btn">🔊 Leer texto</button></div>
+    ${histParas}
+    <hr class="detail-hr">
+
+    <div class="section-h">Servicios</div>
+    <ul class="svc-list">${svcList}</ul>
+    <hr class="detail-hr">
+
+    <div class="section-h">Equipamiento</div>
+    <ul class="svc-list">${eqList}</ul>
+    <hr class="detail-hr">
+
+    <div class="section-h">Entorno</div>
+    <ul class="svc-list">${entList}</ul>
+    <hr class="detail-hr">
+
+    <div class="section-h">Ubicación</div>
+    <div class="detail-map-wrap">
+      <div id="place-detail-map"></div>
+      <div class="detail-map-label">📍 ${p.name}</div>
+    </div>
+    <hr class="detail-hr">
+
+    <div class="section-h">Reseñas</div>
+    <div class="reviews-track">${revCards}</div>
+
+    <div class="write-review">
+      <span class="write-label">Reseña</span>
+      <textarea class="write-textarea" placeholder="Escriba su reseña aquí..."></textarea>
+      <button class="publish-btn" onclick="publishReview(this)">Publicar reseña</button>
+    </div>`;
+}
+
+function publishReview(btn) {
+  const ta = btn.previousElementSibling;
+  const txt = ta.value.trim();
+  if (!txt) { ta.style.borderColor='#e24b4a'; ta.focus(); return; }
+  ta.style.borderColor = '';
+  const track = document.querySelector('.reviews-track');
+  const card = document.createElement('div');
+  card.className = 'review-card';
+  card.innerHTML = `
+    <div class="rev-user">
+      <div style="width:44px;height:44px;border-radius:50%;background:#009B77;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0">Tú</div>
+      <div><div class="rev-name">Tú</div><div class="rev-city">Santiago, Chile.</div></div>
+    </div>
+    <div class="rev-meta"><div class="rev-stars">${stars(5,'rev-star','')}</div><span class="rev-time">Ahora mismo.</span></div>
+    <p class="rev-text">${txt}</p>`;
+  track.prepend(card);
+  ta.value = '';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ── FILTER / SEARCH ──────────────────────────────── */
+let activeFilter = null;
+document.getElementById('pillsRow').addEventListener('click', e => {
+  const pill = e.target.closest('.pill[data-filter]');
+  if (!pill) return;
+  const f = pill.dataset.filter;
+  activeFilter = (activeFilter === f) ? null : f;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  if (activeFilter) pill.classList.add('active');
+  applyFilter();
+});
+
+function applyFilter() {
+  ['t-destacadas','t-cercanas'].forEach(tid => {
+    document.querySelectorAll(`#${tid} .card`).forEach(c => {
+      const tags = (c.dataset.tags||'').split(',');
+      c.style.display = (!activeFilter || tags.includes(activeFilter)) ? '' : 'none';
+    });
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  ['t-destacadas','t-cercanas'].forEach(tid => {
+    document.querySelectorAll(`#${tid} .card`).forEach(c => {
+      const n = c.querySelector('.card-name').textContent.toLowerCase();
+      const a = c.querySelector('.card-address').textContent.toLowerCase();
+      c.style.display = (!q || n.includes(q) || a.includes(q)) ? '' : 'none';
+    });
+  });
+});
+
+/* ── HEARTS ──────────────────────────────────────── */
+document.addEventListener('click', e => {
+  const h = e.target.closest('.card-heart');
+  if (h) { e.stopPropagation(); h.classList.toggle('liked'); }
+});
+
+/* ── CARD CLICK → DETAIL ──────────────────────────── */
+document.addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (card && !e.target.closest('.card-heart')) showDetail(card.dataset.id);
+});
+
+/* ── MAP TOGGLE ───────────────────────────────────── */
+let mapOpen = false;
+function toggleMap() {
+  mapOpen = !mapOpen;
+  const section = document.querySelector('.map-section');
+  const label   = document.getElementById('mapToggleLabel');
+  if (mapOpen) {
+    section.classList.add('open');
+    label.textContent = 'Ocultar mapa';
+    setTimeout(() => homeMap && homeMap.invalidateSize(), 460);
+  } else {
+    section.classList.remove('open');
+    label.textContent = 'Mostrar mapa';
+  }
+}
+
+/* ── INIT ─────────────────────────────────────────── */
+renderTrack('t-destacadas', FEATURED_IDS);
+renderTrack('t-cercanas',   NEARBY_IDS);
+initHomeMap();
+</script>
+</body>
+</html>
