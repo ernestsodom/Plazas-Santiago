@@ -57,6 +57,8 @@ h2.section-title { font-size: 1.1rem; font-weight: 700; margin: 28px 0 14px; }
 .btn-danger { color: var(--red); border-color: #fecaca; }
 .btn-danger:hover { background: #fef2f2; }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-pdf { background: #dc2626; color: #fff; border-color: #dc2626; }
+.btn-pdf:hover { background: #b91c1c; border-color: #b91c1c; }
 .btn-lg { width: 100%; justify-content: center; padding: 14px; font-size: 15px; }
 
 /* Stats */

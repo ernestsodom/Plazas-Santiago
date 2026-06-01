@@ -17,8 +17,18 @@ else
             <h1>@file.FileName</h1>
             <p class="muted">@file.RowCount.ToString("N0") filas · @file.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</p>
         </div>
-        <button class="btn" @onclick='() => Nav.NavigateTo("/files")'>← Volver</button>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-pdf" @onclick="ExportPdf" disabled="@exporting">
+                @if (exporting) { <span>Generando PDF...</span> } else {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <span>Exportar PDF</span>
+                }
+            </button>
+            <button class="btn" @onclick='() => Nav.NavigateTo("/files")'>← Volver</button>
+        </div>
     </div>
+
+    <div id="dashboard-content">
 
     <!-- Config panel -->
     <div class="config-panel">
@@ -112,6 +122,7 @@ else
             </table>
         </div>
     </div>
+    </div> @* cierre dashboard-content *@
 }
 
 @code {
@@ -127,6 +138,14 @@ else
     string valueCol = "";
     string aggregation = "sum";
     string chartType = "bar";
+    bool exporting = false;
+
+    async Task ExportPdf()
+    {
+        exporting = true;
+        await JS.InvokeVoidAsync("exportDashboardPdf", $"{file!.FileName}-dashboard.pdf");
+        exporting = false;
+    }
 
     protected override async Task OnInitializedAsync()
     {

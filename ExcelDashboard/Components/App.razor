@@ -6,12 +6,31 @@
     <title>Excel Dashboard</title>
     <link rel="stylesheet" href="css/app.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <HeadOutlet />
 </head>
 <body>
     <Routes />
     <script src="_framework/blazor.server.js"></script>
     <script>
+        window.exportDashboardPdf = async (fileName) => {
+            const { jsPDF } = window.jspdf;
+            const element = document.getElementById('dashboard-content');
+            if (!element) return;
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#f8fafc' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const ratio = canvas.width / canvas.height;
+            let imgW = pageW - 20;
+            let imgH = imgW / ratio;
+            if (imgH > pageH - 20) { imgH = pageH - 20; imgW = imgH * ratio; }
+            pdf.addImage(imgData, 'PNG', 10, 10, imgW, imgH);
+            pdf.save(fileName || 'dashboard.pdf');
+        };
+
         window.renderChart = (canvasId, type, labels, values, label) => {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
