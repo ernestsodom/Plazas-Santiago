@@ -1,0 +1,178 @@
+@page "/dashboard/{FileId:int}"
+@inject ExcelDashboard.Data.ExcelService Svc
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard — ExcelDash</PageTitle>
+
+@if (file == null)
+{
+    <p class="muted">Cargando...</p>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1>@file.FileName</h1>
+            <p class="muted">@file.RowCount.ToString("N0") filas · @file.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</p>
+        </div>
+        <button class="btn" @onclick='() => Nav.NavigateTo("/files")'>← Volver</button>
+    </div>
+
+    <!-- Config panel -->
+    <div class="config-panel">
+        <div class="config-row">
+            <div class="config-field">
+                <label>Columna de etiquetas (eje X)</label>
+                <select @bind="labelCol">
+                    @foreach (var c in columns) { <option value="@c">@c</option> }
+                </select>
+            </div>
+            <div class="config-field">
+                <label>Columna de valores (numérica)</label>
+                <select @bind="valueCol">
+                    @foreach (var c in numericColumns) { <option value="@c">@c</option> }
+                </select>
+            </div>
+            <div class="config-field">
+                <label>Agregación</label>
+                <select @bind="aggregation">
+                    <option value="sum">Suma</option>
+                    <option value="avg">Promedio</option>
+                    <option value="count">Conteo</option>
+                </select>
+            </div>
+            <div class="config-field">
+                <label>Tipo de gráfico</label>
+                <select @bind="chartType">
+                    <option value="bar">Barras</option>
+                    <option value="line">Línea</option>
+                    <option value="pie">Torta</option>
+                    <option value="doughnut">Dona</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" @onclick="RenderCharts">Actualizar gráficos</button>
+        </div>
+    </div>
+
+    <!-- KPI cards -->
+    @if (chartData != null && chartData.Values.Count > 0)
+    {
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-number">@chartData.Values.Sum().ToString("N0")</div>
+                <div class="stat-label">Total @valueCol</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">@chartData.Values.Average().ToString("N2")</div>
+                <div class="stat-label">Promedio por @labelCol</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">@chartData.Values.Max().ToString("N0")</div>
+                <div class="stat-label">Máximo</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">@chartData.Labels.Count</div>
+                <div class="stat-label">Categorías</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card chart-main">
+                <h3>@valueCol por @labelCol</h3>
+                <canvas id="chart-main" height="300"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Distribución (Dona)</h3>
+                <canvas id="chart-doughnut" height="260"></canvas>
+            </div>
+        </div>
+    }
+
+    <!-- Data table preview -->
+    <div class="table-section">
+        <h2 class="section-title">Vista previa de datos (primeras 50 filas)</h2>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>@foreach (var c in columns) { <th>@c</th> }</tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in previewRows)
+                    {
+                        <tr>
+                            @foreach (var c in columns)
+                            {
+                                <td>@(row.TryGetValue(c, out var v) ? v : "")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int FileId { get; set; }
+
+    ExcelDashboard.Data.ExcelFile? file;
+    List<string> columns = [];
+    List<string> numericColumns = [];
+    List<Dictionary<string, string>> previewRows = [];
+    ExcelDashboard.Data.ChartData? chartData;
+
+    string labelCol = "";
+    string valueCol = "";
+    string aggregation = "sum";
+    string chartType = "bar";
+
+    protected override async Task OnInitializedAsync()
+    {
+        file = await Svc.GetFileAsync(FileId);
+        if (file == null) return;
+
+        columns = System.Text.Json.JsonSerializer.Deserialize<List<string>>(file.ColumnsJson) ?? [];
+
+        // Detect numeric columns by sampling first 20 rows
+        numericColumns = [];
+        var sample = file.Rows.Take(20).ToList();
+        foreach (var col in columns)
+        {
+            int numericCount = sample.Count(r =>
+            {
+                var d = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(r.DataJson) ?? [];
+                return d.TryGetValue(col, out var v) &&
+                       double.TryParse(v, System.Globalization.NumberStyles.Any,
+                           System.Globalization.CultureInfo.InvariantCulture, out _);
+            });
+            if (numericCount >= sample.Count / 2) numericColumns.Add(col);
+        }
+
+        if (columns.Count > 0) labelCol = columns[0];
+        if (numericColumns.Count > 0) valueCol = numericColumns[0];
+        else if (columns.Count > 1) { valueCol = columns[1]; numericColumns.Add(columns[1]); }
+
+        previewRows = file.Rows.Take(50)
+            .Select(r => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(r.DataJson) ?? [])
+            .ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && file != null && !string.IsNullOrEmpty(valueCol))
+            await RenderCharts();
+    }
+
+    async Task RenderCharts()
+    {
+        if (string.IsNullOrEmpty(labelCol) || string.IsNullOrEmpty(valueCol)) return;
+        chartData = await Svc.GetChartDataAsync(FileId, labelCol, valueCol, aggregation);
+        StateHasChanged();
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("renderChart", "chart-main", chartType,
+            chartData.Labels, chartData.Values, valueCol);
+        await JS.InvokeVoidAsync("renderChart", "chart-doughnut", "doughnut",
+            chartData.Labels, chartData.Values, valueCol);
+    }
+}

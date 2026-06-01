@@ -1,0 +1,75 @@
+@page "/"
+@inject ExcelDashboard.Data.ExcelService Svc
+@inject NavigationManager Nav
+
+<PageTitle>Inicio — ExcelDash</PageTitle>
+
+<div class="page-header">
+    <h1>Panel de Control</h1>
+    <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/upload")'>+ Subir Excel</button>
+</div>
+
+@if (files == null)
+{
+    <p class="muted">Cargando...</p>
+}
+else if (files.Count == 0)
+{
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        <h3>Aún no hay archivos</h3>
+        <p>Sube tu primer archivo Excel para empezar a generar dashboards.</p>
+        <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/upload")'>Subir primer archivo</button>
+    </div>
+}
+else
+{
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">@files.Count</div>
+            <div class="stat-label">Archivos cargados</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">@files.Sum(f => f.RowCount).ToString("N0")</div>
+            <div class="stat-label">Total de filas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">@files.FirstOrDefault()?.UploadedAt.ToString("dd MMM")</div>
+            <div class="stat-label">Último archivo</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Archivos recientes</h2>
+    <div class="files-grid">
+        @foreach (var f in files)
+        {
+            <div class="file-card" @onclick='() => Nav.NavigateTo($"/dashboard/{f.Id}")'>
+                <div class="file-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.8">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="8" y1="13" x2="16" y2="13"/>
+                        <line x1="8" y1="17" x2="16" y2="17"/>
+                    </svg>
+                </div>
+                <div class="file-info">
+                    <div class="file-name">@f.FileName</div>
+                    <div class="file-meta">@f.RowCount filas · @f.UploadedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+                </div>
+                <div class="file-arrow">→</div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    List<ExcelDashboard.Data.ExcelFile>? files;
+
+    protected override async Task OnInitializedAsync() =>
+        files = await Svc.GetFilesAsync();
+}

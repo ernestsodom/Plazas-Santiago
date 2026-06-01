@@ -1,0 +1,80 @@
+@page "/upload"
+@inject ExcelDashboard.Data.ExcelService Svc
+@inject NavigationManager Nav
+
+<PageTitle>Subir Excel — ExcelDash</PageTitle>
+
+<div class="page-header">
+    <h1>Subir archivo Excel</h1>
+</div>
+
+<div class="upload-card">
+    <div class="drop-zone @(isDragging ? "dragging" : "")"
+         @ondragenter="() => isDragging = true"
+         @ondragleave="() => isDragging = false"
+         @ondrop="() => isDragging = false">
+
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <polyline points="16 16 12 12 8 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+        </svg>
+        <p class="drop-text">Arrastra tu archivo Excel aquí</p>
+        <p class="drop-sub">o haz clic para seleccionar (.xlsx, .xls)</p>
+        <InputFile OnChange="HandleFile" accept=".xlsx,.xls" class="file-input" />
+    </div>
+
+    @if (selectedFile != null)
+    {
+        <div class="selected-file">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>@selectedFile.Name</span>
+            <span class="muted">(@((selectedFile.Size / 1024.0).ToString("F1")) KB)</span>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        <div class="alert alert-error">@errorMsg</div>
+    }
+
+    <button class="btn btn-primary btn-lg" @onclick="Import" disabled="@(selectedFile == null || loading)">
+        @if (loading) { <span>Importando...</span> } else { <span>Importar y generar dashboard</span> }
+    </button>
+</div>
+
+<div class="tips">
+    <h3>Consejos para mejores resultados</h3>
+    <ul>
+        <li>La primera fila debe contener los <strong>encabezados de columna</strong>.</li>
+        <li>Las columnas numéricas (ventas, montos) se detectan automáticamente para los gráficos.</li>
+        <li>Se soportan archivos <strong>.xlsx</strong> y <strong>.xls</strong>.</li>
+        <li>Puedes subir múltiples archivos y compararlos.</li>
+    </ul>
+</div>
+
+@code {
+    IBrowserFile? selectedFile;
+    bool loading, isDragging;
+    string errorMsg = "";
+
+    void HandleFile(InputFileChangeEventArgs e) =>
+        selectedFile = e.File;
+
+    async Task Import()
+    {
+        if (selectedFile == null) return;
+        loading = true; errorMsg = "";
+        try
+        {
+            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            var file = await Svc.ImportAsync(selectedFile.Name, stream);
+            Nav.NavigateTo($"/dashboard/{file.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMsg = $"Error al importar: {ex.Message}";
+            loading = false;
+        }
+    }
+}
