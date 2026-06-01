@@ -6,6 +6,7 @@
   <title>Vecino — Plazas y Áreas Verdes de Santiago</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -237,6 +238,27 @@
       .detail-body { padding: 28px 20px 48px; }
       #home-map { height: 300px; }
     }
+
+    /* Review form enhancements */
+    .write-name {
+      width: 100%; border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 16px; font-size: 14px; font-family: inherit; color: var(--text);
+      outline: none; margin-bottom: 10px; transition: border-color .15s;
+    }
+    .write-name:focus { border-color: var(--green); }
+    .star-selector { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .sel-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .sel-stars { display: flex; gap: 3px; }
+    .sel-star { font-size: 24px; color: #ddd; cursor: pointer; line-height: 1; user-select: none; transition: color .1s; }
+    .sel-star.sel-active { color: var(--star); }
+    .sel-star.sel-hover  { color: var(--star); }
+    .review-status { font-size: 13px; min-height: 18px; margin: 6px 0 4px; font-weight: 500; }
+    .db-badge {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+      background: #e8f5f0; color: #009B77; border-radius: 6px; padding: 3px 8px;
+      font-weight: 600; margin-left: 8px;
+    }
+    .db-badge.offline { background: #f5f5f5; color: #aaa; }
   </style>
 </head>
 <body>
@@ -417,6 +439,65 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+/* ══════════════════════════════════════════════
+   SUPABASE CONFIG
+   Reemplaza con tus credenciales de supabase.com
+   → Project Settings → API
+══════════════════════════════════════════════ */
+const SUPABASE_URL      = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+let _db = null;
+function getDb() {
+  if (!_db) {
+    try {
+      if (!SUPABASE_URL.startsWith('YOUR_') && !SUPABASE_ANON_KEY.startsWith('YOUR_')) {
+        _db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch(e) { _db = null; }
+  }
+  return _db;
+}
+const dbConnected = () => !!getDb();
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatRelativeTime(ts) {
+  const ms    = Date.now() - new Date(ts).getTime();
+  const mins  = Math.floor(ms / 60000);
+  const hrs   = Math.floor(ms / 3600000);
+  const days  = Math.floor(ms / 86400000);
+  const weeks = Math.floor(days / 7);
+  const months= Math.floor(days / 30);
+  if (mins  <  2) return 'Hace unos momentos';
+  if (hrs   <  1) return `Hace ${mins} minutos`;
+  if (hrs   < 24) return `Hace ${hrs} hora${hrs>1?'s':''}`;
+  if (days  <  7) return `Hace ${days} día${days>1?'s':''}`;
+  if (weeks <  5) return `Hace ${weeks} semana${weeks>1?'s':''}`;
+  return `Hace ${months} mes${months>1?'es':''}`;
+}
+
+async function loadReviewsFromDB(placeId) {
+  const db = getDb();
+  if (!db) return null;
+  const { data, error } = await db.from('reviews')
+    .select('*').eq('place_id', placeId)
+    .order('created_at', { ascending: false }).limit(30);
+  return error ? null : data;
+}
+
+async function saveReviewToDB(placeId, reviewerName, rating, text) {
+  const db = getDb();
+  if (!db) return false;
+  const { error } = await db.from('reviews').insert({
+    place_id: placeId, reviewer_name: reviewerName,
+    rating: rating, review_text: text
+  });
+  return !error;
+}
+
 /* ══════════════════════════════════════════════
    DATA
 ══════════════════════════════════════════════ */
@@ -780,6 +861,7 @@ function initHomeMap() {
 
 /* ── ROUTING ─────────────────────────────────────── */
 let detailMap = null;
+let currentPlaceId = null;
 function showHome() {
   document.getElementById('detail-view').style.display = 'none';
   document.getElementById('home-view').style.display  = 'block';
@@ -859,6 +941,28 @@ function showDetail(placeId) {
       .bindPopup(`<strong style="font-size:13px">${p.name}</strong><br><span style="font-size:11px;color:#717171">${p.address}</span>`, { closeButton: false })
       .openPopup();
   }, 80);
+
+  currentPlaceId = placeId;
+  loadReviewsFromDB(placeId).then(dbReviews => {
+    if (!dbReviews || dbReviews.length === 0) return;
+    const track = document.querySelector('#detail-view .reviews-track');
+    if (!track) return;
+    track.innerHTML = dbReviews.map((r, i) => `
+      <div class="review-card">
+        <div class="rev-user">
+          <img class="rev-avatar" src="https://i.pravatar.cc/60?img=${((i*7+3)%70)+1}" alt="${escHtml(r.reviewer_name)}" onerror="this.style.background='#ddd'">
+          <div>
+            <div class="rev-name">${escHtml(r.reviewer_name)}</div>
+            <div class="rev-city">${escHtml(r.city||'Santiago, Chile.')}</div>
+          </div>
+        </div>
+        <div class="rev-meta">
+          <div class="rev-stars">${stars(r.rating,'rev-star','')}</div>
+          <span class="rev-time">${formatRelativeTime(r.created_at)}.</span>
+        </div>
+        <p class="rev-text">${escHtml(r.review_text)}</p>
+      </div>`).join('');
+  });
 }
 
 function buildDetailBody(p) {
@@ -912,30 +1016,76 @@ function buildDetailBody(p) {
     <div class="reviews-track">${revCards}</div>
 
     <div class="write-review">
-      <span class="write-label">Reseña</span>
-      <textarea class="write-textarea" placeholder="Escriba su reseña aquí..."></textarea>
+      <span class="write-label">Escribe tu reseña</span>
+      <input class="write-name" type="text" placeholder="Tu nombre" maxlength="60">
+      <div class="star-selector">
+        <span class="sel-label">Calificación:</span>
+        <div class="sel-stars" data-val="5">
+          <span class="sel-star sel-active" data-v="1">★</span>
+          <span class="sel-star sel-active" data-v="2">★</span>
+          <span class="sel-star sel-active" data-v="3">★</span>
+          <span class="sel-star sel-active" data-v="4">★</span>
+          <span class="sel-star sel-active" data-v="5">★</span>
+        </div>
+      </div>
+      <textarea class="write-textarea" placeholder="Cuéntanos tu experiencia..."></textarea>
+      <div class="review-status"></div>
       <button class="publish-btn" onclick="publishReview(this)">Publicar reseña</button>
     </div>`;
 }
 
-function publishReview(btn) {
-  const ta = btn.previousElementSibling;
-  const txt = ta.value.trim();
+async function publishReview(btn) {
+  const form     = btn.closest('.write-review');
+  const nameEl   = form.querySelector('.write-name');
+  const ta       = form.querySelector('.write-textarea');
+  const statusEl = form.querySelector('.review-status');
+  const starsEl  = form.querySelector('.sel-stars');
+
+  const name   = nameEl ? nameEl.value.trim() : '';
+  const txt    = ta.value.trim();
+  const rating = parseInt(starsEl?.dataset.val || '5');
+
   if (!txt) { ta.style.borderColor='#e24b4a'; ta.focus(); return; }
   ta.style.borderColor = '';
-  const track = document.querySelector('.reviews-track');
-  const card = document.createElement('div');
-  card.className = 'review-card';
-  card.innerHTML = `
-    <div class="rev-user">
-      <div style="width:44px;height:44px;border-radius:50%;background:#009B77;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0">Tú</div>
-      <div><div class="rev-name">Tú</div><div class="rev-city">Santiago, Chile.</div></div>
-    </div>
-    <div class="rev-meta"><div class="rev-stars">${stars(5,'rev-star','')}</div><span class="rev-time">Ahora mismo.</span></div>
-    <p class="rev-text">${txt}</p>`;
-  track.prepend(card);
+
+  btn.disabled = true;
+  btn.textContent = 'Publicando...';
+
+  const saved = await saveReviewToDB(currentPlaceId, name || 'Anónimo', rating, txt);
+
+  const track = document.querySelector('#detail-view .reviews-track');
+  if (track) {
+    const card = document.createElement('div');
+    card.className = 'review-card';
+    const initial = (name || 'A').charAt(0).toUpperCase();
+    card.innerHTML = `
+      <div class="rev-user">
+        <div style="width:44px;height:44px;border-radius:50%;background:#009B77;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0">${initial}</div>
+        <div><div class="rev-name">${escHtml(name||'Anónimo')}</div><div class="rev-city">Santiago, Chile.</div></div>
+      </div>
+      <div class="rev-meta"><div class="rev-stars">${stars(rating,'rev-star','')}</div><span class="rev-time">Ahora mismo.</span></div>
+      <p class="rev-text">${escHtml(txt)}</p>`;
+    track.prepend(card);
+    card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
   ta.value = '';
-  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  if (nameEl) nameEl.value = '';
+  if (starsEl) {
+    starsEl.dataset.val = 5;
+    starsEl.querySelectorAll('.sel-star').forEach(s => s.classList.add('sel-active'));
+  }
+
+  if (statusEl) {
+    statusEl.style.color = saved ? '#009B77' : '#888';
+    statusEl.textContent  = saved
+      ? '✓ Reseña guardada en la base de datos'
+      : '✓ Reseña publicada (sin conexión a BD configurada)';
+    setTimeout(() => { statusEl.textContent = ''; }, 5000);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Publicar reseña';
 }
 
 /* ── FILTER / SEARCH ──────────────────────────────── */
@@ -997,6 +1147,36 @@ function toggleMap() {
     label.textContent = 'Mostrar mapa';
   }
 }
+
+/* ── STAR SELECTOR ────────────────────────────────── */
+document.addEventListener('mouseover', e => {
+  const star = e.target.closest('.sel-star');
+  if (!star) return;
+  const container = star.closest('.sel-stars');
+  if (!container) return;
+  const v = parseInt(star.dataset.v);
+  container.querySelectorAll('.sel-star').forEach(s => {
+    s.classList.toggle('sel-hover', parseInt(s.dataset.v) <= v);
+  });
+});
+document.addEventListener('mouseout', e => {
+  const star = e.target.closest('.sel-star');
+  if (!star) return;
+  const container = star.closest('.sel-stars');
+  if (!container) return;
+  container.querySelectorAll('.sel-star').forEach(s => s.classList.remove('sel-hover'));
+});
+document.addEventListener('click', e => {
+  const star = e.target.closest('.sel-star');
+  if (!star) return;
+  const container = star.closest('.sel-stars');
+  if (!container) return;
+  const v = parseInt(star.dataset.v);
+  container.dataset.val = v;
+  container.querySelectorAll('.sel-star').forEach(s => {
+    s.classList.toggle('sel-active', parseInt(s.dataset.v) <= v);
+  });
+});
 
 /* ── INIT ─────────────────────────────────────────── */
 renderTrack('t-destacadas', FEATURED_IDS);
