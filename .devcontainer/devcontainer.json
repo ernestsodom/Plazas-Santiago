@@ -1,0 +1,20 @@
+{
+  "name": "ExcelDash",
+  "image": "mcr.microsoft.com/dotnet/sdk:9.0",
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": {
+      "label": "ExcelDash App",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postStartCommand": "cd /workspaces/Plazas-Santiago/ExcelDashboard && dotnet run",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit"
+      ]
+    }
+  }
+}
