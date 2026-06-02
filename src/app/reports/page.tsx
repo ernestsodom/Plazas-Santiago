@@ -68,11 +68,16 @@ export default function ReportsPage() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/reports/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/reports/${id}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error);
       setReports((prev) => prev.filter((r) => r.id !== id));
       toast({ title: "Reporte eliminado" });
+      // Resync with the server to avoid showing stale entries.
+      loadReports();
     } catch (err) {
       toast({
         variant: "destructive",
@@ -93,6 +98,17 @@ export default function ReportsPage() {
         cache: "no-store",
       });
       const body = await res.json();
+      if (res.status === 404) {
+        // Report no longer exists; refresh the list and close the dialog.
+        setDetailReport(null);
+        loadReports();
+        toast({
+          variant: "destructive",
+          title: "Reporte no disponible",
+          description: "Este reporte ya no existe. Se actualizó la lista.",
+        });
+        return;
+      }
       if (!res.ok) throw new Error(body.error);
       setDetailRows(body.rows ?? []);
     } catch (err) {
