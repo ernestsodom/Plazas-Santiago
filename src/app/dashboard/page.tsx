@@ -13,6 +13,13 @@ import {
 } from "@/components/dashboard/ProjectsTable";
 import { RecentUploads } from "@/components/dashboard/RecentUploads";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatNumber, formatDateTime } from "@/lib/utils";
 import {
   buildMonthlyTrend,
@@ -25,14 +32,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trend, setTrend] = useState<ChartPoint[]>([]);
   const [categories, setCategories] = useState<ChartPoint[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
+  // Load the list of reports once.
   useEffect(() => {
     let cancelled = false;
-
-    async function load() {
+    async function loadList() {
       setLoading(true);
       setError(null);
       try {
@@ -42,21 +51,7 @@ export default function DashboardPage() {
         const list: Report[] = body.reports ?? [];
         if (cancelled) return;
         setReports(list);
-
-        if (list.length > 0) {
-          const latest = list[0];
-          const detailRes = await fetch(`/api/reports/${latest.id}`, {
-            cache: "no-store",
-          });
-          const detail = await detailRes.json();
-          if (detailRes.ok && !cancelled) {
-            const rows: ReportData[] = detail.rows ?? [];
-            const report: Report = detail.report;
-            setTrend(buildMonthlyTrend(report, rows));
-            setCategories(buildCategoryBreakdown(report, rows));
-            setProjects(buildProjectRows(report, rows));
-          }
-        }
+        if (list.length > 0) setSelectedId(list[0].id);
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "Error desconocido.");
@@ -64,12 +59,44 @@ export default function DashboardPage() {
         if (!cancelled) setLoading(false);
       }
     }
-
-    load();
+    loadList();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Load chart data whenever the selected report changes.
+  useEffect(() => {
+    if (!selectedId) {
+      setTrend([]);
+      setCategories([]);
+      setProjects([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadCharts() {
+      setChartLoading(true);
+      try {
+        const detailRes = await fetch(`/api/reports/${selectedId}`, {
+          cache: "no-store",
+        });
+        const detail = await detailRes.json();
+        if (detailRes.ok && !cancelled) {
+          const rows: ReportData[] = detail.rows ?? [];
+          const report: Report = detail.report;
+          setTrend(buildMonthlyTrend(report, rows));
+          setCategories(buildCategoryBreakdown(report, rows));
+          setProjects(buildProjectRows(report, rows));
+        }
+      } finally {
+        if (!cancelled) setChartLoading(false);
+      }
+    }
+    loadCharts();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   const totalRegistros = reports.reduce(
     (acc, r) => acc + (r.row_count ?? 0),
@@ -92,6 +119,29 @@ export default function DashboardPage() {
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {reports.length > 0 && (
+          <div className="flex flex-col gap-1.5 sm:max-w-sm">
+            <label className="text-sm font-medium text-slate-600">
+              Reporte a visualizar
+            </label>
+            <Select
+              value={selectedId ?? undefined}
+              onValueChange={(v) => setSelectedId(v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un reporte" />
+              </SelectTrigger>
+              <SelectContent>
+                {reports.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -130,7 +180,7 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {loading ? (
+          {loading || chartLoading ? (
             <>
               <Skeleton className="h-[380px] w-full" />
               <Skeleton className="h-[380px] w-full" />
@@ -144,7 +194,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {loading ? (
+          {loading || chartLoading ? (
             <>
               <Skeleton className="h-64 w-full" />
               <Skeleton className="h-64 w-full" />

@@ -56,13 +56,27 @@ export async function DELETE(
     // Delete associated rows first (in case cascade is not configured).
     await supabase.from("report_data").delete().eq("report_id", params.id);
 
-    const { error } = await supabase
+    // Return the deleted rows so we can verify the delete actually happened.
+    const { data: deleted, error } = await supabase
       .from("reports")
       .delete()
-      .eq("id", params.id);
+      .eq("id", params.id)
+      .select();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // RLS can make a delete "succeed" while removing zero rows. Detect that.
+    if (!deleted || deleted.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo eliminar: la base de datos bloqueó el borrado " +
+            "(falta la política de eliminación en Supabase).",
+        },
+        { status: 403 }
+      );
     }
 
     return NextResponse.json(

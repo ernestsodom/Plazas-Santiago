@@ -20,3 +20,21 @@ create table report_data (
 );
 
 create index on report_data(report_id);
+
+-- Row Level Security: enable and allow public access (single-user internal tool).
+-- Each policy covers SELECT, INSERT, UPDATE and DELETE.
+alter table reports enable row level security;
+alter table report_data enable row level security;
+
+drop policy if exists "Acceso público a reports" on reports;
+drop policy if exists "Acceso público a report_data" on report_data;
+
+create policy "Acceso público a reports"
+  on reports for all
+  using (true)
+  with check (true);
+
+create policy "Acceso público a report_data"
+  on report_data for all
+  using (true)
+  with check (true);

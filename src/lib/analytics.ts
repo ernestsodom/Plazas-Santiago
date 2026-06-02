@@ -50,13 +50,68 @@ function isNumericValue(value: unknown): boolean {
   return false;
 }
 
+const MONTH_NAMES: Record<string, number> = {
+  ene: 0, enero: 0,
+  feb: 1, febrero: 1,
+  mar: 2, marzo: 2,
+  abr: 3, abril: 3,
+  may: 4, mayo: 4,
+  jun: 5, junio: 5,
+  jul: 6, julio: 6,
+  ago: 7, agosto: 7,
+  sep: 8, sept: 8, septiembre: 8,
+  oct: 9, octubre: 9,
+  nov: 10, noviembre: 10,
+  dic: 11, diciembre: 11,
+};
+
+function buildDate(year: number, month: number, day: number): Date | null {
+  if (year < 100) year += 2000;
+  if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+  const d = new Date(year, month, day);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function parseDate(value: unknown): Date | null {
-  if (!value) return null;
+  if (value === null || value === undefined || value === "") return null;
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
-  // Avoid treating plain numbers / short codes as dates.
   if (typeof value === "number") return null;
-  const str = String(value);
-  if (!/[-/.]|\d{4}/.test(str)) return null;
+
+  const str = String(value).trim();
+
+  // ISO first: YYYY-MM-DD (optionally with time).
+  const iso = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) {
+    return buildDate(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  }
+
+  // Day-first formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (Chilean/European).
+  const dmy = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (dmy) {
+    let day = Number(dmy[1]);
+    let month = Number(dmy[2]);
+    // If the first part can't be a day but the second can, swap (US format).
+    if (day > 12 && month <= 12) {
+      // keep as day-first
+    } else if (month > 12 && day <= 12) {
+      [day, month] = [month, day];
+    }
+    return buildDate(Number(dmy[3]), month - 1, day);
+  }
+
+  // Text month: "5 ene 2026", "ene 2026", "enero 2026".
+  const textual = str
+    .toLowerCase()
+    .match(/(?:(\d{1,2})\s+)?([a-záéíóú]+)\.?\s+(\d{4})/);
+  if (textual && MONTH_NAMES[textual[2]] !== undefined) {
+    return buildDate(
+      Number(textual[3]),
+      MONTH_NAMES[textual[2]],
+      textual[1] ? Number(textual[1]) : 1
+    );
+  }
+
+  // Last resort: native parser (handles many English formats).
   const d = new Date(str);
   return isNaN(d.getTime()) ? null : d;
 }
