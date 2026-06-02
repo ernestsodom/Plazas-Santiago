@@ -36,7 +36,7 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/reports");
+        const res = await fetch("/api/reports", { cache: "no-store" });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Error al cargar reportes.");
         const list: Report[] = body.reports ?? [];
@@ -45,7 +45,9 @@ export default function DashboardPage() {
 
         if (list.length > 0) {
           const latest = list[0];
-          const detailRes = await fetch(`/api/reports/${latest.id}`);
+          const detailRes = await fetch(`/api/reports/${latest.id}`, {
+            cache: "no-store",
+          });
           const detail = await detailRes.json();
           if (detailRes.ok && !cancelled) {
             const rows: ReportData[] = detail.rows ?? [];

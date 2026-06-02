@@ -95,15 +95,18 @@ export default function UploadPage() {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", name.trim());
-      formData.append("dataType", dataType);
-      formData.append("columns", JSON.stringify(columns));
-
       const res = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          fileName: file.name,
+          fileSize: file.size,
+          dataType,
+          columns,
+          headers: parsed.headers,
+          rows: parsed.rows,
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Error al subir el archivo.");

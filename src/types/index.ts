@@ -15,6 +15,8 @@ export interface ColumnMapping {
   type: ColumnType;
 }
 
+export type ExcelRow = Record<string, unknown>;
+
 export interface Report {
   id: string;
   name: string;

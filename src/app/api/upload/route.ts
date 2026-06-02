@@ -1,36 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseClient } from "@/lib/supabase";
-import {
-  parseExcelBuffer,
-  detectDataType,
-  suggestColumnType,
-} from "@/lib/excel-parser";
-import type { ColumnMapping, DataType } from "@/types";
+import { detectDataType, suggestColumnType } from "@/lib/excel-parser";
+import type { ColumnMapping, DataType, ExcelRow } from "@/types";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const VALID_TYPES: DataType[] = ["ventas", "finanzas", "proyectos", "mixto"];
 
+interface UploadBody {
+  name?: string;
+  fileName?: string;
+  fileSize?: number;
+  dataType?: string;
+  columns?: ColumnMapping[];
+  headers?: string[];
+  rows?: ExcelRow[];
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("file");
-    const name = (formData.get("name") as string | null)?.trim();
-    const dataTypeInput = formData.get("dataType") as string | null;
-    const columnsInput = formData.get("columns") as string | null;
+    const body = (await req.json()) as UploadBody;
+    const name = body.name?.trim();
+    const fileName = body.fileName?.trim() || "archivo.xlsx";
+    const headers = body.headers ?? [];
+    const rows = body.rows ?? [];
 
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "No se recibió ningún archivo." },
-        { status: 400 }
-      );
-    }
-
-    const buffer = await file.arrayBuffer();
-    const parsed = parseExcelBuffer(buffer);
-
-    if (parsed.rowCount === 0) {
+    if (rows.length === 0) {
       return NextResponse.json(
         { error: "El archivo no contiene datos." },
         { status: 400 }
@@ -39,40 +36,31 @@ export async function POST(req: NextRequest) {
 
     // Determine data type
     let dataType: DataType;
-    if (dataTypeInput && VALID_TYPES.includes(dataTypeInput as DataType)) {
-      dataType = dataTypeInput as DataType;
+    if (body.dataType && VALID_TYPES.includes(body.dataType as DataType)) {
+      dataType = body.dataType as DataType;
     } else {
-      dataType = detectDataType(parsed.headers);
+      dataType = detectDataType(headers);
     }
 
     // Determine column mappings
-    let columns: ColumnMapping[];
-    if (columnsInput) {
-      try {
-        columns = JSON.parse(columnsInput) as ColumnMapping[];
-      } catch {
-        columns = parsed.headers.map((column) => ({
-          column,
-          type: suggestColumnType(column),
-        }));
-      }
-    } else {
-      columns = parsed.headers.map((column) => ({
-        column,
-        type: suggestColumnType(column),
-      }));
-    }
+    const columns: ColumnMapping[] =
+      body.columns && body.columns.length > 0
+        ? body.columns
+        : headers.map((column) => ({
+            column,
+            type: suggestColumnType(column),
+          }));
 
     const supabase = getSupabaseClient();
 
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .insert({
-        name: name || file.name,
-        file_name: file.name,
-        file_size: file.size,
+        name: name || fileName,
+        file_name: fileName,
+        file_size: body.fileSize ?? null,
         data_type: dataType,
-        row_count: parsed.rowCount,
+        row_count: rows.length,
         columns,
       })
       .select()
@@ -85,7 +73,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rowsPayload = parsed.rows.map((row, index) => ({
+    const rowsPayload = rows.map((row, index) => ({
       report_id: report.id,
       row_data: row,
       row_index: index,
