@@ -45,7 +45,7 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/reports", { cache: "no-store" });
+        const res = await fetch(`/api/reports?t=${Date.now()}`, { cache: "no-store" });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Error al cargar reportes.");
         const list: Report[] = body.reports ?? [];
@@ -77,7 +77,7 @@ export default function DashboardPage() {
     async function loadCharts() {
       setChartLoading(true);
       try {
-        const detailRes = await fetch(`/api/reports/${selectedId}`, {
+        const detailRes = await fetch(`/api/reports/${selectedId}?t=${Date.now()}`, {
           cache: "no-store",
         });
         const detail = await detailRes.json();

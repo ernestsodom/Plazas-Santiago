@@ -45,7 +45,7 @@ export default function ReportsPage() {
   async function loadReports() {
     setLoading(true);
     try {
-      const res = await fetch("/api/reports", { cache: "no-store" });
+      const res = await fetch(`/api/reports?t=${Date.now()}`, { cache: "no-store" });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error);
       setReports(body.reports ?? []);
@@ -68,7 +68,7 @@ export default function ReportsPage() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/reports/${id}`, {
+      const res = await fetch(`/api/reports/${id}?t=${Date.now()}`, {
         method: "DELETE",
         cache: "no-store",
       });
@@ -94,7 +94,7 @@ export default function ReportsPage() {
     setDetailLoading(true);
     setDetailRows([]);
     try {
-      const res = await fetch(`/api/reports/${report.id}`, {
+      const res = await fetch(`/api/reports/${report.id}?t=${Date.now()}`, {
         cache: "no-store",
       });
       const body = await res.json();
