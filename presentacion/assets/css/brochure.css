@@ -1,0 +1,151 @@
+/* =====================================================================
+   Vista Victoria — Brochure paginado (PDF)
+   Formato landscape 1079 × 654 pt  ·  estilo minimalista arquitectónico
+   ===================================================================== */
+:root{
+  --paper:#F4F2EC; --paper-2:#ECEAE2; --white:#FCFBF8;
+  --ink:#16150F; --ink-2:#211F18; --stone-600:#524F48; --stone-500:#6E6B62;
+  --stone-400:#8C887E; --stone-300:#B0ACA1; --stone-200:#CFCBC0;
+  --line:#D8D4C9; --line-2:#C7C2B5; --line-dark:#34322B;
+  --display:'Space Grotesk',sans-serif; --sans:'Inter',sans-serif;
+  --pp:46pt;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html,body{background:#3a3833;}
+body{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5;-webkit-font-smoothing:antialiased;}
+img{display:block;max-width:100%;}
+ul{list-style:none;}
+
+@page{ size:1079pt 654pt; margin:0; }
+
+.page{
+  width:1079pt; height:654pt; position:relative; overflow:hidden;
+  background:var(--paper); color:var(--ink);
+  page-break-after:always; break-after:page;
+  display:flex; flex-direction:column;
+}
+.page:last-child{ page-break-after:auto; break-after:auto; }
+.pad{ padding:var(--pp); }
+.fill{ flex:1 1 auto; min-height:0; }
+
+/* Tipografía */
+.eyebrow{ font-size:7pt; font-weight:600; letter-spacing:.28em; text-transform:uppercase; color:var(--stone-400); display:flex; align-items:center; gap:.7em; }
+.eyebrow .idx{ font-family:var(--display); font-weight:400; color:var(--stone-300); }
+.eyebrow::before{ content:""; width:22pt; height:1px; background:var(--line-2); }
+h1,h2,h3{ font-family:var(--display); font-weight:300; line-height:1.02; letter-spacing:-.015em; }
+.t-xl{ font-size:62pt; } .t-l{ font-size:38pt; } .t-m{ font-size:27pt; line-height:1.06; } .t-s{ font-size:18pt; line-height:1.12; }
+.lede{ font-size:13pt; line-height:1.5; color:var(--stone-600); }
+.body{ font-size:9.6pt; line-height:1.62; color:var(--stone-600); }
+.muted{ color:var(--stone-400); }
+
+/* Encabezado de página */
+.p-head{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:12pt; border-bottom:1px solid var(--line); }
+.p-head__title{ margin-top:9pt; }
+.p-head__meta{ font-size:7pt; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); text-align:right; line-height:1.5; }
+
+/* Folio / marca al pie */
+.folio{ position:absolute; left:var(--pp); right:var(--pp); bottom:20pt; display:flex; justify-content:space-between; align-items:center;
+  font-size:6.5pt; letter-spacing:.22em; text-transform:uppercase; color:var(--stone-400); }
+.folio .mk{ display:flex; align-items:center; gap:6pt; }
+.folio svg{ width:11pt; color:var(--stone-500); }
+
+.mono{ color:currentColor; }
+
+/* Imágenes */
+.cover-media,.bleed-media{ position:absolute; inset:0; }
+.cover-media img,.bleed-media img{ width:100%; height:100%; object-fit:cover; }
+.scrim{ position:absolute; inset:0; background:linear-gradient(to bottom,rgba(8,8,6,.34),rgba(8,8,6,0) 32%,rgba(8,8,6,0) 52%,rgba(8,8,6,.66)); }
+.fig{ position:relative; overflow:hidden; background:var(--paper-2); }
+.fig img{ width:100%; height:100%; object-fit:cover; }
+.cap{ position:absolute; left:0; bottom:0; padding:7pt 9pt; font-size:6pt; letter-spacing:.2em; text-transform:uppercase; color:#fff;
+  background:linear-gradient(to top,rgba(0,0,0,.5),transparent); width:100%; }
+.cap-line{ display:flex; justify-content:space-between; align-items:baseline; margin-top:7pt; padding-top:6pt; border-top:1px solid var(--line); }
+.cap-line .t{ font-family:var(--display); font-size:11pt; } .cap-line .s{ font-size:6.5pt; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); }
+
+/* ---- Cover / back (dark) ---- */
+.page--dark{ background:var(--ink); color:var(--white); }
+.cover-inner{ position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:flex-end; color:#fff; }
+.cover-lock{ display:flex; align-items:flex-end; gap:16pt; margin:10pt 0 14pt; }
+.cover-lock svg{ width:64pt; color:#fff; }
+.cover-lock .nm{ font-family:var(--display); font-weight:300; font-size:58pt; line-height:.9; letter-spacing:-.02em; }
+.cover-sub{ display:flex; gap:18pt; font-size:9pt; letter-spacing:.04em; color:rgba(255,255,255,.9); align-items:center; }
+.cover-sub .dot{ width:3pt;height:3pt;background:rgba(255,255,255,.7);border-radius:50%; }
+.cover-eyebrow{ color:rgba(255,255,255,.85); } .cover-eyebrow::before{ background:rgba(255,255,255,.5); }
+
+/* ---- Manifiesto ---- */
+.mani{ display:grid; grid-template-columns:1.15fr .85fr; gap:30pt; align-items:start; }
+.mani .stmt{ color:var(--stone-400); } .mani .stmt em{ font-style:normal; color:var(--ink); }
+.mani-figs{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12pt; margin-top:16pt; height:185pt; }
+.pull{ font-family:var(--display); font-weight:300; font-size:14pt; line-height:1.25; margin-top:12pt; }
+
+/* ---- Mosaic entorno ---- */
+.mosaic{ display:grid; grid-template-columns:repeat(12,1fr); grid-auto-rows:1fr; gap:12pt; height:100%; }
+.mosaic .fig{ width:100%;height:100%; }
+.q-a{ grid-column:span 5; grid-row:span 2; } .q-b{ grid-column:span 4; } .q-c{ grid-column:span 3; }
+.q-d{ grid-column:span 4; } .q-e{ grid-column:span 3; }
+
+/* ---- Conectividad ---- */
+.connect{ display:grid; grid-template-columns:1fr 1.15fr; gap:34pt; align-items:start; }
+.cols2{ columns:2; column-gap:26pt; }
+.dist-h{ font-size:7pt; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); display:flex; justify-content:space-between; margin:0 0 5pt; break-after:avoid; }
+.dist{ display:flex; align-items:baseline; gap:7pt; padding:4.4pt 0; border-top:1px solid var(--line); font-size:8.4pt; break-inside:avoid; }
+.dist .nm{ color:var(--ink-2); white-space:nowrap; } .dist .ld{ flex:1; border-bottom:1px dotted var(--stone-200); transform:translateY(-2px); }
+.dist .vl{ font-family:var(--display); font-variant-numeric:tabular-nums; color:var(--stone-600); white-space:nowrap; }
+.map-frame{ border:1px solid var(--line); background:var(--white); padding:14pt; }
+.map-frame img{ width:100%; }
+.map-frame .cp{ margin-top:8pt; font-size:6.5pt; letter-spacing:.18em; text-transform:uppercase; color:var(--stone-400); }
+
+/* ---- Facts ---- */
+.facts{ display:grid; grid-template-columns:repeat(5,1fr); border-top:1px solid var(--line); }
+.fct{ padding:16pt 14pt 4pt; border-right:1px solid var(--line); } .fct:last-child{ border-right:0; }
+.fct svg{ width:18pt; height:18pt; color:var(--ink); margin-bottom:11pt; }
+.fct .k{ font-family:var(--display); font-size:15pt; color:var(--ink); margin-bottom:5pt; }
+.fct .lb{ font-size:6.5pt; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); margin-bottom:8pt; }
+.fct .v{ font-size:8pt; color:var(--stone-600); line-height:1.46; }
+
+/* ---- Split / feature list ---- */
+.split{ display:grid; grid-template-columns:1fr 1fr; gap:34pt; align-items:center; }
+.flist{ margin-top:14pt; } .flist li{ display:flex; gap:10pt; padding:6.5pt 0; border-top:1px solid var(--line); font-size:9pt; color:var(--ink-2); align-items:baseline; }
+.flist li::before{ content:""; width:5pt; height:5pt; border:1px solid var(--ink); transform:rotate(45deg); flex:none; }
+.flist--plain li::before{ display:none; } .flist--plain li{ color:var(--stone-600); }
+
+/* ---- Programa ---- */
+.prog{ display:grid; grid-template-columns:.92fr 1.08fr; gap:30pt; align-items:start; }
+.plans{ display:grid; grid-template-columns:1fr 1fr; gap:12pt; }
+.plan-card{ background:var(--white); border:1px solid var(--line); padding:12pt; }
+.plan-card img{ width:100%; }
+.plan-card .cp{ margin-top:8pt; padding-top:6pt; border-top:1px solid var(--line); display:flex; justify-content:space-between; font-size:6pt; letter-spacing:.16em; text-transform:uppercase; color:var(--stone-400); }
+.areas{ columns:2; column-gap:24pt; }
+.ag{ break-inside:avoid; margin-bottom:6pt; }
+.ag h4{ font-size:6.5pt; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); margin:8pt 0 2pt; }
+.ag h4:first-child{ margin-top:0; }
+.atab{ width:100%; border-collapse:collapse; font-size:7.6pt; }
+.atab td{ padding:2.7pt 0; border-bottom:1px solid var(--line); color:var(--ink-2); }
+.atab td:first-child{ color:var(--stone-600); } .atab td:not(:first-child){ text-align:right; font-variant-numeric:tabular-nums; }
+.atab .tot td{ font-family:var(--display); color:var(--ink); }
+.atab .grd td{ font-family:var(--display); font-size:8.6pt; color:var(--ink); border-bottom:1.4pt solid var(--ink); padding-top:5pt; }
+
+/* ---- Terminaciones ---- */
+.specs{ columns:4; column-gap:22pt; }
+.sg{ break-inside:avoid; margin-bottom:13pt; }
+.sg h4{ font-size:6.6pt; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--ink); padding-bottom:4pt; border-bottom:1px solid var(--line-2); margin-bottom:6pt; }
+.ss{ font-size:6.6pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--stone-500); margin:6pt 0 2pt; }
+.sl li{ font-size:7.4pt; color:var(--stone-600); line-height:1.42; padding-left:7pt; position:relative; margin-bottom:2pt; }
+.sl li::before{ content:""; position:absolute; left:0; top:.62em; width:3pt; height:1px; background:var(--stone-300); }
+
+/* ---- Partners ---- */
+.partners{ display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+.pt{ background:var(--paper); padding:16pt 14pt; } .pt.w2{ grid-column:span 2; } .pt.w3{ grid-column:span 3; }
+.pt .role{ font-size:6pt; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); margin-bottom:7pt; }
+.pt .nm{ font-family:var(--display); font-size:14pt; color:var(--ink); line-height:1.05; }
+.pt .nt{ font-size:7pt; color:var(--stone-400); margin-top:2pt; }
+
+/* ---- Contacto ---- */
+.contact{ display:grid; grid-template-columns:1.1fr .9fr; gap:40pt; align-items:end; height:100%; }
+.crow{ display:grid; grid-template-columns:90pt 1fr; gap:10pt; padding:9pt 0; border-top:1px solid var(--line-dark); align-items:baseline; }
+.crow .k{ font-size:6.5pt; letter-spacing:.2em; text-transform:uppercase; color:var(--stone-400); }
+.crow .v{ font-family:var(--display); font-size:13pt; font-weight:300; color:#fff; }
+.back-lock{ display:flex; align-items:center; gap:14pt; margin-bottom:18pt; }
+.back-lock svg{ width:52pt; color:#fff; }
+.back-lock .nm{ font-family:var(--display); font-weight:300; font-size:30pt; line-height:1; }
+.back-lock .nm small{ display:block; font-size:.4em; letter-spacing:.3em; text-transform:uppercase; color:var(--stone-400); font-weight:600; margin-bottom:5pt; }
