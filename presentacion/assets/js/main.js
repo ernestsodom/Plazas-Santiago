@@ -17,6 +17,8 @@
     if (progress) progress.style.width = (h > 0 ? (y / h) * 100 : 0) + '%';
     const trigger = hero ? hero.offsetHeight - header.offsetHeight - 40 : 200;
     header.classList.toggle('is-solid', y > trigger);
+    // Ocultar "Programa" y "Contacto" en cuanto se baja desde el inicio
+    header.classList.toggle('nav-min', y > 100);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll, { passive: true });

@@ -179,6 +179,12 @@ em.accent { font-style: normal; color: var(--ink); }
 .site-header.is-solid .nav__cta:hover { background: var(--ink); color: var(--paper); }
 .site-header:not(.is-solid) .nav__cta:hover { background: var(--white); color: var(--ink); }
 
+/* Ocultar "Programa" y "Contacto" al hacer scroll hacia abajo (escritorio) */
+@media (min-width: 861px) {
+  .site-header.nav-min .nav a[href="#programa"],
+  .site-header.nav-min .nav__cta { display: none; }
+}
+
 .nav-toggle { display: none; width: 30px; height: 30px; position: relative; z-index: 110; }
 .nav-toggle span { position: absolute; left: 3px; right: 3px; height: 1.5px; background: currentColor; transition: transform .35s var(--ease), opacity .25s; }
 .nav-toggle span:nth-child(1){ top: 11px; } .nav-toggle span:nth-child(2){ bottom: 11px; }
@@ -299,12 +305,11 @@ em.accent { font-style: normal; color: var(--ink); }
 .cap-block .s { font-size: .64rem; letter-spacing: .2em; text-transform: uppercase; color: var(--stone-400); }
 
 /* ------------------------------- Casa -------------------------------- */
-.gallery { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); }
+.gallery { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: clamp(140px, 18vw, 264px); gap: var(--gap); }
+.gallery .figure { width: 100%; height: 100%; cursor: zoom-in; grid-row: span 2; }
 .g-full { grid-column: 1 / -1; }
 .g-7 { grid-column: span 7; } .g-5 { grid-column: span 5; }
 .g-6 { grid-column: span 6; } .g-8 { grid-column: span 8; } .g-4 { grid-column: span 4; }
-.gallery .figure { cursor: zoom-in; }
-.gallery .g-full .figure { aspect-ratio: 21/9; }
 .shot { position: relative; overflow: hidden; background: var(--paper-2); cursor: zoom-in; }
 .shot img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease-out); }
 .shot:hover img { transform: scale(1.045); }
@@ -412,9 +417,14 @@ em.accent { font-style: normal; color: var(--ink); }
   .nav__cta { border-color: var(--ink); }
   .nav-toggle { display: block; }
   .site-header { color: var(--white); }
+  /* En móvil el header sólido es opaco: el backdrop-filter crearía un bloque
+     contenedor y el menú fijo (inset:0) dejaría de ocupar toda la pantalla. */
+  .site-header.is-solid { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .split, .split--rev .split__media { grid-template-columns: 1fr; }
   .split--rev .split__media { order: 0; }
-  .gallery .g-7, .gallery .g-5, .gallery .g-6, .gallery .g-8, .gallery .g-4 { grid-column: 1 / -1; }
+  .gallery { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .gallery .figure { grid-column: 1 / -1 !important; grid-row: auto !important; aspect-ratio: 3 / 2; height: auto; }
+  .gallery .g-full { aspect-ratio: 16 / 9; }
   .mosaic { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30vw; }
   .m-a { grid-column: span 6; grid-row: span 2; } .m-b,.m-d,.m-f,.m-g { grid-column: span 6; } .m-c,.m-e { grid-column: span 3; }
   .plans-stack, .plan-row, .duo, .manifesto__figs { grid-template-columns: 1fr; }
