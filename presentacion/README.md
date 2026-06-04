@@ -8,9 +8,15 @@ Se entrega en **dos formatos** a partir de un mismo lenguaje visual:
 
 | Formato | Archivo | Uso |
 |---|---|---|
-| **Web** (scroll inmersivo, responsive) | `index.html` | Compartir el link, publicar en `vistavictoria.cl` |
+| **Web — un solo archivo** (todo incrustado) | `Vista-Victoria.html` | Abrir con **doble clic**, sin servidor ni internet; enviar como adjunto |
+| **Web — multiarchivo** (scroll inmersivo, responsive) | `index.html` | Publicar en `vistavictoria.cl` (versión optimizada para hosting) |
 | **PDF** (19 páginas, landscape) | `Vista-Victoria-Brochure.pdf` | Enviar por correo / WhatsApp, imprimir |
 | Fuente del PDF | `brochure.html` | Editar el brochure y regenerar el PDF |
+
+> **Vista-Victoria.html** es idéntico a `index.html` pero con los estilos, las
+> fuentes y las imágenes incrustados en base64: es un único archivo (~14 MB) que
+> funciona offline con solo abrirlo en el navegador. Es el más cómodo para revisar
+> o reenviar; `index.html` + `assets/` es preferible para publicar en un hosting.
 
 ---
 
