@@ -1,103 +1,70 @@
 # Condominio Vista Victoria — Presentación
 
-Rediseño de la presentación comercial del **Condominio Vista Victoria** (La Reina,
-Santiago). Estilo **minimalista arquitectónico**: neutros piedra, retícula estricta,
-líneas finas, renders a sangre completa y tipografía de nivel editorial.
+Presentación comercial del **Condominio Vista Victoria** (La Reina, Santiago) con
+estilo **minimalista arquitectónico**. El contenido está organizado en **varias
+páginas / vistas**: Inicio · El Entorno · El Proyecto · La Casa · Programa ·
+Contacto.
 
-Se entrega en **dos formatos** a partir de un mismo lenguaje visual:
+## Cómo verla
 
-| Formato | Archivo | Uso |
+| Quiero… | Abre | Notas |
 |---|---|---|
-| **Web — un solo archivo** (todo incrustado) | `Vista-Victoria.html` | Abrir con **doble clic**, sin servidor ni internet; enviar como adjunto |
-| **Web — multiarchivo** (scroll inmersivo, responsive) | `index.html` | Publicar en `vistavictoria.cl` (versión optimizada para hosting) |
-| **PDF** (19 páginas, landscape) | `Vista-Victoria-Brochure.pdf` | Enviar por correo / WhatsApp, imprimir |
-| Fuente del PDF | `brochure.html` | Editar el brochure y regenerar el PDF |
+| **Verla rápido, con doble clic** | **`Vista-Victoria.html`** | Un solo archivo con todo embebido (estilos, fuentes e imágenes). Funciona **sin internet ni servidor**. Las "páginas" se cambian con el menú. |
+| Publicarla en un sitio web | `index.html` (+ `entorno.html`, `proyecto.html`, `la-casa.html`, `programa.html`, `contacto.html`) | Sitio multipágina clásico, optimizado para hosting. |
+| Enviar por correo / WhatsApp / imprimir | `Vista-Victoria-Brochure.pdf` | Brochure de 19 páginas en formato landscape. |
 
-> **Vista-Victoria.html** es idéntico a `index.html` pero con los estilos, las
-> fuentes y las imágenes incrustados en base64: es un único archivo (~14 MB) que
-> funciona offline con solo abrirlo en el navegador. Es el más cómodo para revisar
-> o reenviar; `index.html` + `assets/` es preferible para publicar en un hosting.
+> **`Vista-Victoria.html` es el archivo recomendado para revisar y compartir.**
+> Es autocontenido: ábrelo en cualquier navegador y navega entre las vistas con el
+> menú superior. En el sitio multipágina cada vista es un archivo `.html`
+> independiente que carga los recursos desde la carpeta `assets/`.
 
----
+## Estructura
 
-## Cómo ver la presentación web
-
-La web es **autocontenida** (tipografías e imágenes incluidas, sin dependencias
-externas). Para evitar restricciones del navegador con archivos locales, conviene
-servirla:
-
-```bash
-cd presentacion
-python3 -m http.server 8099
-# abrir http://localhost:8099/index.html
+```
+presentacion/
+├─ Vista-Victoria.html          ← un solo archivo (recomendado para ver/compartir)
+├─ index.html                   ← Home (sitio multipágina)
+├─ entorno.html · proyecto.html · la-casa.html · programa.html · contacto.html
+├─ Vista-Victoria-Brochure.pdf  ← versión PDF
+├─ brochure.html                ← fuente del PDF
+└─ assets/
+   ├─ css/  (app.css · fonts.css · brochure.css)
+   ├─ js/   (app.js)
+   ├─ img/  (renders, planos y mapa)
+   └─ fonts/(Space Grotesk · Inter)
 ```
 
-(También funciona abriendo `index.html` directamente, aunque algunos navegadores
-limitan la carga de fuentes vía `file://`.)
+## Navegación y diseño
 
-### Características
-- Navegación fija con barra de progreso y resaltado de sección activa.
-- Animaciones de aparición al hacer scroll (respetan `prefers-reduced-motion`).
-- Galería con *lightbox* (clic para ampliar renders y planos).
-- Pestañas de superficies por unidad (Casa 1 · Casa Tipo 2-5 · Casa 6).
-- 100 % responsive (escritorio, tablet y móvil con menú desplegable).
+- **Páginas/vistas** con menú superior, breadcrumbs y navegación anterior/siguiente.
+- **Home** sintética que funciona como hub, con tarjetas-botón hacia cada vista.
+- **Galerías en carrusel** deslizable (swipe en móvil, flechas y puntos en escritorio).
+- **Plantas y superficies** por unidad en pestañas; planos ampliables (lightbox).
+- **Terminaciones** resumidas, con "ver especificaciones completas" desplegable.
+- Tipografías **Space Grotesk + Inter** (autoalojadas), paleta neutra piedra,
+  monograma "VV" vectorial. 100 % responsive.
 
----
-
-## Sistema de diseño
-
-- **Tipografías** (autoalojadas en `assets/fonts/`):
-  *Space Grotesk* para titulares y datos · *Inter* para texto.
-- **Paleta:** papel `#F4F2EC`, tinta `#16150F`, grises piedra. Sin color de acento:
-  el color lo aportan los renders.
-- **Marca:** monograma "VV" recreado como SVG vectorial (nítido a cualquier tamaño)
-  + wordmark tipográfico.
-
----
-
-## Regenerar el PDF
-
-El PDF se genera desde `brochure.html` con un Chromium headless (Playwright),
-a tamaño `1079 × 654 pt` (la misma proporción del brochure original).
+## Regenerar el archivo único o el PDF
 
 ```bash
-# requisitos: node + playwright con chromium
-npm install playwright && npx playwright install chromium
+# Archivo único (Vista-Victoria.html) — vuelve a empaquetar las 6 páginas
+python3 /tmp/build/bundle.py     # (script incluido en el historial del proyecto)
 
-# con la web servida en http://localhost:8099
-node - <<'JS'
-const { chromium } = require('playwright');
-(async () => {
-  const b = await chromium.launch();
-  const p = await b.newPage();
-  await p.goto('http://localhost:8099/brochure.html', { waitUntil: 'networkidle' });
-  await p.evaluate(() => document.fonts.ready);
-  await p.pdf({ path: 'Vista-Victoria-Brochure.pdf', printBackground: true, preferCSSPageSize: true });
-  await b.close();
-})();
-JS
+# PDF — desde brochure.html con Chromium headless (Playwright), 1079×654 pt
+node pdf.js
 ```
-
----
 
 ## Despliegue
 
-Es un sitio **estático**: puede publicarse en GitHub Pages, Vercel, Netlify o
-cualquier hosting. Para servirlo desde la app Next.js de este repositorio, basta
-copiar la carpeta a `public/presentacion/` y quedará disponible en
-`/presentacion/`.
-
----
+Sitio **estático**: publica la carpeta en GitHub Pages, Vercel o Netlify. Para
+servirlo desde la app Next.js del repositorio, copia la carpeta a
+`public/presentacion/`.
 
 ## Notas sobre las imágenes
 
-- Los **renders arquitectónicos** son los originales del proyecto, reprocesados en
-  alta resolución y presentados a sangre completa.
-- Las **fotos de contexto** del brochure original eran banco de imágenes genérico;
-  una de ellas (feria) tenía **marca de agua "Unsplash+"** y fue **eliminada**. Se
-  curó el set a 5 imágenes auténticas y limpias del entorno (parque, calle de La
-  Reina con cordillera, cumbre andina, colegios y metro).
-- Para un resultado aún más distintivo, se recomienda sustituir las fotos de
-  contexto por **fotografía local con licencia comercial** o material propio.
+- Los **renders** son los originales del proyecto, reprocesados en alta resolución.
+- Las fotos de contexto se curaron a imágenes auténticas y limpias; se eliminó una
+  imagen de banco con marca de agua. El **mapa** es el exacto del brochure, con
+  todas sus etiquetas de puntos de interés.
 
 *Imágenes y renders referenciales.*
